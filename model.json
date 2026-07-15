@@ -1,0 +1,53 @@
+{
+  "built_at": "2026-07-15",
+  "seasons": [],
+  "effects": {
+    "dome": 0.012,
+    "clear": 0.0,
+    "wind": -0.015,
+    "rain": -0.01,
+    "cold": -0.008,
+    "snow": -0.022
+  },
+  "effects_meta": {
+    "dome":  {"raw_effect": 0.012, "n_plays": 0, "ci_lo": 0.0,    "ci_hi": 0.024},
+    "clear": {"raw_effect": 0.0,   "n_plays": 0, "ci_lo": 0.0,    "ci_hi": 0.0},
+    "wind":  {"raw_effect": -0.015,"n_plays": 0, "ci_lo": -0.025, "ci_hi": -0.005},
+    "rain":  {"raw_effect": -0.01, "n_plays": 0, "ci_lo": -0.018, "ci_hi": -0.002},
+    "cold":  {"raw_effect": -0.008,"n_plays": 0, "ci_lo": -0.016, "ci_hi": 0.0},
+    "snow":  {"raw_effect": -0.022,"n_plays": 0, "ci_lo": -0.038, "ci_hi": -0.006}
+  },
+  "stadiums": [
+    {"id": "allegiant-stadium",      "name": "Allegiant Stadium",      "type": "dome",        "dome_frac": 1.0},
+    {"id": "arrowhead-stadium",      "name": "Arrowhead Stadium",      "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "att-stadium",            "name": "ATT Stadium",            "type": "retractable", "dome_frac": 0.7},
+    {"id": "bank-of-america-stadium","name": "Bank of America Stadium","type": "outdoor",     "dome_frac": 0.0},
+    {"id": "caesars-superdome",      "name": "Caesars Superdome",      "type": "dome",        "dome_frac": 1.0},
+    {"id": "empower-field",          "name": "Empower Field",          "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "era-stadium",            "name": "Highmark Stadium",       "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "everbank-stadium",       "name": "EverBank Stadium",       "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "fedex-field",            "name": "FedEx Field",            "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "ford-field",             "name": "Ford Field",             "type": "dome",        "dome_frac": 1.0},
+    {"id": "gillette-stadium",       "name": "Gillette Stadium",       "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "lambeau-field",          "name": "Lambeau Field",          "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "levis-stadium",          "name": "Levi's Stadium",         "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "lincoln-financial-field","name": "Lincoln Financial Field","type": "outdoor",     "dome_frac": 0.0},
+    {"id": "lucas-oil-stadium",      "name": "Lucas Oil Stadium",      "type": "dome",        "dome_frac": 1.0},
+    {"id": "mercedes-benz-stadium",  "name": "Mercedes-Benz Stadium",  "type": "retractable", "dome_frac": 1.0},
+    {"id": "metlife-stadium",        "name": "MetLife Stadium",        "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "nrg-stadium",            "name": "NRG Stadium",            "type": "retractable", "dome_frac": 0.65},
+    {"id": "paycor-stadium",         "name": "Paycor Stadium",         "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "sofi-stadium",           "name": "SoFi Stadium",           "type": "retractable", "dome_frac": 0.8},
+    {"id": "soldier-field",          "name": "Soldier Field",          "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "state-farm-stadium",     "name": "State Farm Stadium",     "type": "retractable", "dome_frac": 0.7},
+    {"id": "tiaa-bank-field",        "name": "TIAA Bank Field",        "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "tite-field",             "name": "Tite Field (Acrisure)", "type": "outdoor",     "dome_frac": 0.0},
+    {"id": "tottenham-hotspur-stadium","name":"Tottenham Hotspur Stadium","type":"outdoor",   "dome_frac": 0.0},
+    {"id": "us-bank-stadium",        "name": "U.S. Bank Stadium",      "type": "dome",        "dome_frac": 1.0}
+  ],
+  "validation": {
+    "yoy_raw": null,
+    "yoy_neutral": null
+  },
+  "changelog": []
+}

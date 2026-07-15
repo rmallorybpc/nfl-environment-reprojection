@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit — QB Environment Reprojection — TMG</title>
+  <meta name="description" content="Methodology audit for the TMG QB environment reprojection model: data sources, modelling decisions, and validation." />
+  <style>
+    /* {{TMG_CSS}} */
+  </style>
+</head>
+<body class="page-wrap">
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo">TMG Analytics</a>
+      <nav class="site-nav">
+        <a href="index.html">Tool</a>
+        <a href="audit.html" class="active">Audit</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="container container--narrow">
+
+      <div class="page-hero">
+        <p class="eyebrow">Methodology Audit</p>
+        <h1>QB Environment Reprojection</h1>
+        <p class="subtitle">
+          Full transparency on every modelling decision, data source, assumption,
+          and known limitation in the environment reprojection system.
+        </p>
+      </div>
+
+      <!-- ── 1. Overview ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">1 · Overview</h2>
+        </div>
+        <p>
+          A quarterback's raw completion percentage conflates skill with context.
+          Playing in a climate-controlled dome, on a sunny autumn afternoon, or
+          in a driving snowstorm all shift the completion-probability surface
+          independently of the QB's talent. This tool removes those environmental
+          contributions so analysts can compare QBs on a common baseline.
+        </p>
+        <p>
+          The reprojection formula is:
+        </p>
+        <pre><code>Comp%_neutral = Comp%_observed − Σ (effect_i × exposure_i)</code></pre>
+        <p>
+          where each <em>effect_i</em> is a learned regression coefficient
+          (shrunk toward the league mean) and <em>exposure_i</em> is the
+          fraction of a QB's dropbacks under condition <em>i</em>.
+        </p>
+      </section>
+
+      <!-- ── 2. Data Sources ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">2 · Data Sources</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Contents</th>
+                <th>Seasons</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a> pbp</td>
+                <td>Play-by-play with completion, air yards, weather fields</td>
+                <td>2016 – present</td>
+              </tr>
+              <tr>
+                <td>nflverse stadiums</td>
+                <td>Stadium type (dome / retractable / outdoor), surface</td>
+                <td>All</td>
+              </tr>
+              <tr>
+                <td>nflverse weather</td>
+                <td>Temperature, wind speed, precipitation flag</td>
+                <td>2016 – present</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout callout--info mt-4">
+          <p class="text-sm">
+            <strong>Refresh cadence:</strong> The model is rebuilt on every push
+            to <code>main</code> via GitHub Actions, so coefficients always
+            reflect the latest published nflverse data.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 3. Feature Engineering ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">3 · Feature Engineering</h2>
+        </div>
+
+        <h3 class="mb-3">3.1 · Dome Indicator</h3>
+        <p>
+          Each stadium is classified as <em>dome</em> (always closed),
+          <em>retractable</em> (partially indoor), or <em>outdoor</em>.
+          Retractable-roof stadiums are assigned a historical open/closed
+          fraction derived from the nflverse stadium metadata.
+          A per-play dome flag is computed and aggregated to a per-QB
+          seasonal dome snap share.
+        </p>
+
+        <h3 class="mb-3 mt-5">3.2 · Weather Buckets</h3>
+        <p>
+          Outdoor plays are bucketed into five weather conditions:
+        </p>
+        <ul style="padding-left:1.5rem; margin-bottom:var(--space-4);">
+          <li><strong>Clear / Mild</strong> — baseline (wind &lt;15 mph, temp ≥35 °F, no precipitation)</li>
+          <li><strong>High Wind</strong> — wind speed ≥15 mph</li>
+          <li><strong>Rain</strong> — precipitation flag set, temp ≥35 °F</li>
+          <li><strong>Cold</strong> — temp &lt;35 °F, no precipitation</li>
+          <li><strong>Snow</strong> — precipitation flag set, temp &lt;35 °F</li>
+        </ul>
+        <p>
+          Dome plays are always assigned <em>Clear / Mild</em> regardless of
+          reported weather, preventing dome roof status from double-counting.
+        </p>
+
+        <h3 class="mb-3 mt-5">3.3 · Covariates in Regression</h3>
+        <p>
+          To isolate environment from talent and usage, the regression
+          conditions on:
+        </p>
+        <ul style="padding-left:1.5rem; margin-bottom:var(--space-4);">
+          <li>Intended air yards (binned into 5 buckets)</li>
+          <li>Down &amp; distance bucket (short/medium/long)</li>
+          <li>Coverage shell (man / zone / unknown)</li>
+          <li>Season (fixed effects)</li>
+        </ul>
+      </section>
+
+      <!-- ── 4. Shrinkage Model ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">4 · Shrinkage Model</h2>
+        </div>
+        <p>
+          Raw environment coefficients are estimated via an OLS regression on
+          individual pass attempts (binary outcome: complete / incomplete).
+          Coefficient estimates are then shrunk toward the cross-sample mean
+          using an empirical Bayes approach:
+        </p>
+        <pre><code>θ̂_shrunk = (n_i / (n_i + κ)) × θ̂_raw + (κ / (n_i + κ)) × μ̄</code></pre>
+        <p>
+          where <em>n_i</em> is the sample size for condition <em>i</em>,
+          <em>κ</em> is the prior pseudo-count (tuned by cross-validation),
+          and <em>μ̄</em> is the grand-mean effect across conditions.
+          This prevents the model from over-fitting to small-sample weather
+          combinations (e.g., the handful of snow games each season).
+        </p>
+
+        <div class="callout mt-4">
+          <p class="text-sm">
+            <strong>Key assumption:</strong> Environment effects are additive and
+            separable from QB skill. The model does not attempt to capture
+            QB × Environment interactions (e.g., a QB who is uniquely bad in wind).
+            Such interactions are typically within the noise at current sample sizes.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 5. Learned Coefficients ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">5 · Learned Coefficients</h2>
+          <span class="section__note">From latest model build</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Condition</th>
+                <th class="td-right">Effect (pp)</th>
+                <th class="td-right">95% CI</th>
+                <th class="td-right">n plays</th>
+              </tr>
+            </thead>
+            <tbody id="coeffs-tbody">
+              <!-- populated by inline script below -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 6. Validation ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">6 · Validation</h2>
+        </div>
+        <p>
+          Model quality is assessed via:
+        </p>
+        <ol style="padding-left:1.5rem; margin-bottom:var(--space-4);">
+          <li><strong>Leave-one-season-out CV</strong> — train on seasons T–1 and back, evaluate on season T.</li>
+          <li><strong>Year-over-year stability</strong> — Pearson correlation of environment-neutral Comp% across adjacent seasons vs. raw Comp%.</li>
+          <li><strong>Placebo test</strong> — null model (no environment adjustment) used as baseline.</li>
+        </ol>
+        <div class="card" id="validation-card">
+          <div class="grid grid--2">
+            <div>
+              <p class="card__title">YoY Correlation (raw Comp%)</p>
+              <p class="card__value" id="val-yoy-raw">—</p>
+            </div>
+            <div>
+              <p class="card__title">YoY Correlation (neutral Comp%)</p>
+              <p class="card__value" id="val-yoy-neutral">—</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 7. Known Limitations ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">7 · Known Limitations</h2>
+        </div>
+        <ul style="padding-left:1.5rem;">
+          <li class="mb-3">
+            <strong>Weather data quality.</strong>
+            nflverse weather fields are sourced from game-level stadium reports,
+            not play-level sensor data. In-game changes (e.g., wind shifting at
+            halftime) are not captured.
+          </li>
+          <li class="mb-3">
+            <strong>Receiver quality.</strong>
+            The model does not adjust for receiver separation or drop rate,
+            which correlate with team-level environment (roster construction)
+            rather than QB environment per se.
+          </li>
+          <li class="mb-3">
+            <strong>Interaction effects.</strong>
+            Additive separability is assumed. A QB who significantly
+            outperforms his peers in bad weather would have his skill
+            attributed to environment, not the reverse. Interaction terms
+            require substantially more data to estimate reliably.
+          </li>
+          <li class="mb-3">
+            <strong>Playoff exclusion.</strong>
+            Postseason games are excluded from coefficient estimation to
+            avoid survivorship bias (only certain teams play in cold-weather
+            postseason games).
+          </li>
+        </ul>
+      </section>
+
+      <!-- ── 8. Changelog ── -->
+      <section class="section">
+        <div class="section__header">
+          <h2 class="section__title">8 · Changelog</h2>
+        </div>
+        <div id="changelog">
+          <!-- populated by inline script -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>TMG Analytics · QB Environment Reprojection · <a href="index.html">Tool</a></p>
+      <p>Data: <a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a></p>
+    </div>
+  </footer>
+
+  <script>
+    // Model data injected by build_site.py
+    const MODEL = {{MODEL_JSON}};
+
+    // ── Populate coefficient table ────────────────────────────────────────────
+    (function renderCoeffs() {
+      const effects = MODEL.effects || {};
+      const meta    = MODEL.effects_meta || {};
+      const tbody   = document.getElementById('coeffs-tbody');
+
+      const labels = {
+        dome:  'Dome (fully indoor)',
+        clear: 'Clear / Mild (baseline)',
+        wind:  'High Wind (≥15 mph)',
+        rain:  'Rain',
+        cold:  'Cold (<35 °F)',
+        snow:  'Snow',
+      };
+
+      Object.entries(labels).forEach(([key, label]) => {
+        const v   = effects[key] ?? null;
+        const m   = meta[key]  ?? {};
+        const tr  = document.createElement('tr');
+        const ci  = m.ci_lo != null && m.ci_hi != null
+                    ? `[${fmtDelta(m.ci_lo)}, ${fmtDelta(m.ci_hi)}]`
+                    : '—';
+        const npl = m.n_plays != null ? m.n_plays.toLocaleString() : '—';
+        tr.innerHTML = `
+          <td>${label}</td>
+          <td class="td-right td-mono">${v != null ? fmtDelta(v) : '—'}</td>
+          <td class="td-right td-mono text-muted">${ci}</td>
+          <td class="td-right td-mono">${npl}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    })();
+
+    // ── Populate validation card ──────────────────────────────────────────────
+    (function renderValidation() {
+      const val = MODEL.validation || {};
+      const rawEl     = document.getElementById('val-yoy-raw');
+      const neutralEl = document.getElementById('val-yoy-neutral');
+      if (val.yoy_raw     != null) rawEl.textContent     = val.yoy_raw.toFixed(3);
+      if (val.yoy_neutral != null) neutralEl.textContent = val.yoy_neutral.toFixed(3);
+    })();
+
+    // ── Populate changelog ────────────────────────────────────────────────────
+    (function renderChangelog() {
+      const changelog = MODEL.changelog || [];
+      const el = document.getElementById('changelog');
+      if (!changelog.length) {
+        el.innerHTML = '<p class="text-muted text-sm">No changelog entries yet.</p>';
+        return;
+      }
+      changelog.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'callout callout--info mb-4';
+        div.innerHTML = `
+          <p class="text-sm text-muted mb-1">${entry.date}</p>
+          <p class="text-sm">${entry.description}</p>
+        `;
+        el.appendChild(div);
+      });
+    })();
+
+    function fmtDelta(v) {
+      if (v == null) return '—';
+      const sign = v >= 0 ? '+' : '';
+      return sign + (v * 100).toFixed(2) + ' pp';
+    }
+  </script>
+</body>
+</html>
