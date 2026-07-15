@@ -1,335 +1,194 @@
 """
-build_model.py — Step 1
-=======================
-Pulls nflverse play-by-play data, engineers environment features, fits a
-shrinkage model for completion-percentage environment effects, and writes
-model.json to the repository root.
+NFL environment reprojection: model layer.
 
-Usage
------
-    python build_model.py
+Reads nflverse play-by-play, computes each QB's dome/outdoor completion effect,
+the league environment effect, and an empirical-Bayes shrinkage of each QB's
+own effect toward the league mean. Emits a compact JSON the front end consumes.
 
-Requirements
-------------
-    pip install nfl_data_py pandas numpy
+Method summary
+- Environment per game: indoor = dome or retractable-closed. outdoor = open-air
+  or retractable-open. Classified by the game's roof, not the QB's home team.
+- Qualifying game: the QB threw at least MIN_ATT_PER_GAME attempts. This is the
+  games-started proxy.
+- ROAD-ONLY EFFECT: the environment split (indoor minus outdoor) is measured on
+  AWAY games only. A quarterback's home games are all one environment, so pooling
+  home and away lets home-field advantage ride along inside the environment
+  number. Restricting the split to away games holds home field out of both sides,
+  isolating the environment effect. (This mirrors Sports Info Solutions.)
+- TRUE ANCHOR: each quarterback's baseline completion percentage and his real
+  environment mix are taken from ALL games, so the tool still shows his real
+  career number. Only the slope of the counterfactual uses the clean road-only
+  effect.
+- Roster filter: keep QBs with at least MIN_GAMES_PER_ENV qualifying AWAY games
+  in BOTH environments, so the clean effect is estimable.
+- Shrinkage: d_hat = w * d_player + (1 - w) * d_league, reliability weight
+  w = var_between / (var_between + var_split), var_between by DerSimonian-Laird.
 """
 
-from __future__ import annotations
-
-import json
-import math
-import warnings
-from datetime import date
-
+import glob, json
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings("ignore")
+# Tunable parameters. Change these and rerun.
+MIN_ATT_PER_GAME = 10     # attempts needed to count a game as a start
+MIN_GAMES_PER_ENV = 8     # qualifying AWAY games needed in EACH environment
+ROAD_ONLY = True          # measure the environment effect on away games only
+SEASON_START = 1999
+SEASON_END = 2024
+KEEP_COLS = ["season", "game_id", "roof", "home_team", "away_team", "posteam",
+             "passer_player_id", "passer_player_name", "pass_attempt",
+             "complete_pass", "sack", "season_type"]
 
-# ── Configuration ──────────────────────────────────────────────────────────────
-FIRST_SEASON = 2016
-SHRINKAGE_KAPPA = 500        # empirical-Bayes prior pseudo-count (pass attempts)
-MIN_ATTEMPTS_QB = 100        # minimum seasonal attempts for QB inclusion
-WIND_THRESHOLD = 15          # mph
-COLD_THRESHOLD = 35          # °F
-
-# Stadium overrides for dome fraction
-# (retractable-roof stadiums get a historical fraction)
-DOME_FRACTION_OVERRIDES: dict[str, float] = {
-    "ATT Stadium":            0.70,   # Cowboys — retractable, usually closed
-    "State Farm Stadium":     0.70,   # Cardinals — retractable
-    "Allegiant Stadium":      1.00,   # Raiders — fully indoor
-    "Lucas Oil Stadium":      1.00,   # Colts — fully indoor
-    "NRG Stadium":            0.65,   # Texans — retractable
-    "Ford Field":             1.00,   # Lions — fully indoor
-    "Mercedes-Benz Stadium":  1.00,   # Falcons — retractable, typically closed
-    "U.S. Bank Stadium":      1.00,   # Vikings — fully indoor
-    "Caesars Superdome":      1.00,   # Saints — fully indoor
-    "SoFi Stadium":           0.80,   # Rams/Chargers — retractable
-}
+INDOOR = {"dome", "closed"}
+OUTDOOR = {"outdoors", "open"}
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def weather_bucket(row: pd.Series) -> str:
-    """Classify a row's weather into one of five buckets."""
-    if row.get("roof") in ("dome", "closed"):
-        return "clear"   # dome plays are always baseline
-
-    wind  = row.get("wind", 0) or 0
-    temp  = row.get("temp", 65) or 65
-    precip = bool(row.get("precipitation", False))
-
-    if precip and temp < COLD_THRESHOLD:
-        return "snow"
-    if precip:
-        return "rain"
-    if temp < COLD_THRESHOLD:
-        return "cold"
-    if wind >= WIND_THRESHOLD:
-        return "wind"
-    return "clear"
-
-
-def dome_flag(row: pd.Series) -> float:
-    """Return 1 if dome, 0 if outdoor, fractional for retractable."""
-    roof = row.get("roof", "outdoor") or "outdoor"
-    if roof in ("dome", "closed"):
-        return 1.0
-    if roof == "retractable":
-        stadium = row.get("stadium", "") or ""
-        return DOME_FRACTION_OVERRIDES.get(stadium, 0.5)
-    return 0.0
-
-
-def shrink(raw_effect: float, n_plays: int, grand_mean: float, kappa: float) -> float:
-    """Empirical Bayes shrinkage toward grand mean."""
-    weight = n_plays / (n_plays + kappa)
-    return weight * raw_effect + (1 - weight) * grand_mean
-
-
-def pearson_r(x: pd.Series, y: pd.Series) -> float:
-    """Pearson correlation, dropping NaN pairs."""
-    df = pd.DataFrame({"x": x, "y": y}).dropna()
-    if len(df) < 5:
-        return float("nan")
-    return float(df["x"].corr(df["y"]))
-
-
-# ── Main pipeline ──────────────────────────────────────────────────────────────
-
-def main() -> None:
-    print("Loading nflverse play-by-play data…")
-    try:
-        import nfl_data_py as nfl
-        seasons = list(range(FIRST_SEASON, date.today().year + 1))
-        pbp = nfl.import_pbp_data(seasons, downcast=True, cache=True)
-    except Exception as exc:
-        print(f"  WARNING: could not load nflverse data ({exc}). Using empty DataFrame.")
-        pbp = pd.DataFrame()
-
-    if pbp.empty:
-        print("  No data available — writing empty model.")
-        _write_model({
-            "built_at": date.today().isoformat(),
-            "seasons": [],
-            "effects": _default_effects(),
-            "effects_meta": _default_effects_meta(),
-            "stadiums": [],
-            "validation": {},
-            "changelog": [],
-        })
-        return
-
-    print(f"  Loaded {len(pbp):,} plays.")
-
-    # ── Filter to regular-season pass attempts ─────────────────────────────────
-    passes = pbp[
-        (pbp["play_type"] == "pass")
-        & (pbp["season_type"] == "REG")
-        & (pbp["qb_dropback"] == 1)
-        & pbp["complete_pass"].notna()
-        & pbp["passer_player_id"].notna()
-    ].copy()
-
-    print(f"  {len(passes):,} regular-season dropbacks after filtering.")
-
-    # ── Derive environment columns ─────────────────────────────────────────────
-    passes["weather"]   = passes.apply(weather_bucket, axis=1)
-    passes["dome_frac"] = passes.apply(dome_flag, axis=1)
-
-    # ── Build stadium lookup ───────────────────────────────────────────────────
-    stadiums = _build_stadium_list(passes)
-
-    # ── Estimate raw effects via group means (controlling for covariates) ───────
-    print("Estimating environment effects…")
-    effects_raw, effects_meta_raw = _estimate_effects(passes)
-
-    # ── Shrink toward grand mean ───────────────────────────────────────────────
-    outdoor_keys = ["wind", "rain", "cold", "snow"]
-    outdoor_vals = [effects_raw[k] for k in outdoor_keys]
-    grand_mean   = float(np.mean(outdoor_vals))
-
-    effects_shrunk: dict[str, float] = {}
-    effects_meta:   dict[str, dict]  = {}
-
-    for key, raw_val in effects_raw.items():
-        n = effects_meta_raw[key].get("n_plays", 0)
-        shrunk = shrink(raw_val, n, grand_mean if key != "dome" else 0.0, SHRINKAGE_KAPPA)
-        effects_shrunk[key] = round(shrunk, 6)
-        ci_half = 1.96 * effects_meta_raw[key].get("se", 0)
-        effects_meta[key] = {
-            "raw_effect": round(raw_val, 6),
-            "n_plays":    int(n),
-            "ci_lo":      round(shrunk - ci_half, 6),
-            "ci_hi":      round(shrunk + ci_half, 6),
-        }
-
-    # ── Compute year-over-year validation ──────────────────────────────────────
-    print("Computing year-over-year validation…")
-    validation = _yoy_validation(passes, effects_shrunk)
-
-    # ── Write model.json ───────────────────────────────────────────────────────
-    seasons_used = sorted(passes["season"].dropna().unique().tolist())
-    model = {
-        "built_at":    date.today().isoformat(),
-        "seasons":     [int(s) for s in seasons_used],
-        "effects":     effects_shrunk,
-        "effects_meta": effects_meta,
-        "stadiums":    stadiums,
-        "validation":  validation,
-        "changelog": [
-            {
-                "date": date.today().isoformat(),
-                "description": f"Model rebuilt from {seasons_used[0]}–{seasons_used[-1]} nflverse PBP data.",
-            }
-        ],
-    }
-    _write_model(model)
-    print("Done — model.json written.")
-
-
-# ── Sub-routines ───────────────────────────────────────────────────────────────
-
-def _estimate_effects(passes: pd.DataFrame) -> tuple[dict, dict]:
-    """
-    Estimate raw completion-percentage effects for each environment condition
-    relative to the Clear/Mild baseline, controlling for covariates via
-    cell-mean residuals.
-    """
-    complete_col = "complete_pass"
-    baseline = passes[passes["weather"] == "clear"][complete_col].mean()
-
-    effects_raw  = {}
-    effects_meta = {}
-
-    # Weather buckets (relative to clear baseline)
-    for bucket in ["clear", "wind", "rain", "cold", "snow"]:
-        subset = passes[passes["weather"] == bucket][complete_col]
-        n      = len(subset)
-        mean   = float(subset.mean()) if n > 0 else float("nan")
-        se     = float(subset.std() / math.sqrt(n)) if n > 1 else 0.0
-        raw_eff = (mean - baseline) if not math.isnan(mean) else 0.0
-        effects_raw[bucket]  = raw_eff
-        effects_meta[bucket] = {"n_plays": n, "se": se}
-
-    # Dome effect (comparing dome plays to outdoor-clear plays)
-    dome_plays    = passes[passes["dome_frac"] >= 0.9][complete_col]
-    outdoor_clear = passes[(passes["dome_frac"] < 0.1) & (passes["weather"] == "clear")][complete_col]
-    dome_mean     = float(dome_plays.mean()) if len(dome_plays) > 0 else baseline
-    outdoor_mean  = float(outdoor_clear.mean()) if len(outdoor_clear) > 0 else baseline
-    dome_se       = float(dome_plays.std() / math.sqrt(len(dome_plays))) if len(dome_plays) > 1 else 0.0
-
-    effects_raw["dome"]  = dome_mean - outdoor_mean
-    effects_meta["dome"] = {"n_plays": int(len(dome_plays)), "se": dome_se}
-
-    # Baseline clear is always 0 by definition
-    effects_raw["clear"]  = 0.0
-    effects_meta["clear"]["se"] = 0.0
-
-    return effects_raw, effects_meta
-
-
-def _yoy_validation(passes: pd.DataFrame, effects: dict) -> dict:
-    """Year-over-year stability of raw vs. environment-neutral Comp%."""
-    try:
-        seasons = sorted(passes["season"].dropna().unique())
-        if len(seasons) < 2:
-            return {}
-
-        records = []
-        for season in seasons:
-            df = passes[passes["season"] == season].copy()
-            for qb_id, grp in df.groupby("passer_player_id"):
-                if len(grp) < MIN_ATTEMPTS_QB:
-                    continue
-                raw_cp = float(grp["complete_pass"].mean())
-                # Compute environment-neutral Comp%
-                dome_share = float(grp["dome_frac"].mean())
-                weather_dist = grp["weather"].value_counts(normalize=True).to_dict()
-                env_effect = (
-                    effects.get("dome", 0) * dome_share
-                    + sum(effects.get(w, 0) * f for w, f in weather_dist.items())
-                )
-                records.append({
-                    "season": int(season),
-                    "qb_id":  qb_id,
-                    "raw_cp": raw_cp,
-                    "neutral_cp": raw_cp - env_effect,
-                })
-
-        df_rec = pd.DataFrame(records)
-        if df_rec.empty:
-            return {}
-
-        df_pivot_raw     = df_rec.pivot(index="qb_id", columns="season", values="raw_cp")
-        df_pivot_neutral = df_rec.pivot(index="qb_id", columns="season", values="neutral_cp")
-
-        r_raw     = []
-        r_neutral = []
-
-        for i in range(len(seasons) - 1):
-            s1, s2 = int(seasons[i]), int(seasons[i + 1])
-            if s1 not in df_pivot_raw.columns or s2 not in df_pivot_raw.columns:
-                continue
-            r_raw.append(pearson_r(df_pivot_raw[s1], df_pivot_raw[s2]))
-            r_neutral.append(pearson_r(df_pivot_neutral[s1], df_pivot_neutral[s2]))
-
-        return {
-            "yoy_raw":     round(float(np.nanmean(r_raw)), 4) if r_raw else None,
-            "yoy_neutral": round(float(np.nanmean(r_neutral)), 4) if r_neutral else None,
-        }
-    except Exception as exc:
-        print(f"  Validation failed: {exc}")
-        return {}
-
-
-def _build_stadium_list(passes: pd.DataFrame) -> list[dict]:
-    """Build a list of {id, name, type, dome_frac} for the tool dropdown."""
-    if "stadium" not in passes.columns:
-        return []
-
+def load_pergame():
+    """One row per (passer, game, env, home/away) with attempts and completions."""
     rows = []
-    for stadium_name, grp in passes.groupby("stadium"):
-        if not stadium_name or not isinstance(stadium_name, str):
-            continue
-        roof_mode = grp["roof"].mode().iloc[0] if "roof" in grp.columns and not grp["roof"].empty else "outdoor"
-        dome_frac = DOME_FRACTION_OVERRIDES.get(
-            stadium_name,
-            1.0 if roof_mode in ("dome", "closed") else (0.5 if roof_mode == "retractable" else 0.0),
-        )
-        rows.append({
-            "id":        stadium_name.lower().replace(" ", "-"),
-            "name":      stadium_name,
-            "type":      str(roof_mode),
-            "dome_frac": round(dome_frac, 2),
+    for fn in sorted(glob.glob("pbp/pbp_*.parquet")):
+        df = pd.read_parquet(fn, columns=KEEP_COLS)
+        df = df[(df["season_type"] == "REG") &
+                (df["pass_attempt"] == 1) &
+                (df["sack"] != 1) &
+                (df["passer_player_id"].notna())].copy()
+        df["env"] = df["roof"].map(
+            lambda r: "indoor" if r in INDOOR else ("outdoor" if r in OUTDOOR else None))
+        df = df[df["env"].notna()]
+        df["ha"] = np.where(df["posteam"] == df["home_team"], "home", "away")
+        g = (df.groupby(["passer_player_id", "passer_player_name",
+                         "game_id", "env", "ha"], observed=True)
+               .agg(att=("pass_attempt", "sum"),
+                    comp=("complete_pass", "sum")).reset_index())
+        rows.append(g)
+    return pd.concat(rows, ignore_index=True)
+
+
+def env_totals(frame):
+    """Return wide per-passer totals by environment: att, comp, games."""
+    by = (frame.groupby(["passer_player_id", "env"], observed=True)
+               .agg(att=("att", "sum"), comp=("comp", "sum"),
+                    games=("game_id", "nunique")).reset_index())
+    wide = by.pivot(index="passer_player_id", columns="env",
+                    values=["att", "comp", "games"]).fillna(0)
+    wide.columns = [f"{a}_{b}" for a, b in wide.columns]
+    for c in ["att_indoor", "att_outdoor", "comp_indoor", "comp_outdoor",
+              "games_indoor", "games_outdoor"]:
+        if c not in wide:
+            wide[c] = 0.0
+    return wide
+
+
+def main():
+    pergame = load_pergame()
+    pergame = pergame[pergame["att"] >= MIN_ATT_PER_GAME].copy()   # qualifying games
+
+    road = pergame[pergame["ha"] == "away"] if ROAD_ONLY else pergame
+
+    allw = env_totals(pergame)     # anchor: all games
+    rdw = env_totals(road)         # effect: road games
+
+    names = (pergame.sort_values("game_id")
+                    .groupby("passer_player_id")["passer_player_name"].last())
+
+    # League effect: pooled completion pct by env over road qualifying games.
+    ti = road[road.env == "indoor"]["att"].sum()
+    ci = road[road.env == "indoor"]["comp"].sum()
+    to = road[road.env == "outdoor"]["att"].sum()
+    co = road[road.env == "outdoor"]["comp"].sum()
+    c_in_league = ci / ti
+    c_out_league = co / to
+    d_league = c_in_league - c_out_league
+
+    # Roster: two-sided minimum on qualifying road games.
+    keep = rdw[(rdw.games_indoor >= MIN_GAMES_PER_ENV) &
+               (rdw.games_outdoor >= MIN_GAMES_PER_ENV)].index
+    r = rdw.loc[keep].copy()
+
+    # Effect (road games)
+    r["c_in"] = r.comp_indoor / r.att_indoor
+    r["c_out"] = r.comp_outdoor / r.att_outdoor
+    r["d_obs"] = r.c_in - r.c_out
+    r["var_split"] = (r.c_in * (1 - r.c_in) / r.att_indoor +
+                      r.c_out * (1 - r.c_out) / r.att_outdoor)
+    r["rd_in"] = r.games_indoor.astype(int)
+    r["rd_out"] = r.games_outdoor.astype(int)
+
+    # Anchor (all games)
+    a = allw.loc[keep]
+    att_all = a.att_indoor + a.att_outdoor
+    comp_all = a.comp_indoor + a.comp_outdoor
+    r["c_all"] = comp_all / att_all
+    r["p_in"] = a.att_indoor / att_all
+    r["att_all"] = att_all
+    r["se_c_all"] = np.sqrt(r.c_all * (1 - r.c_all) / att_all)
+    r["games_in"] = a.games_indoor.astype(int)
+    r["games_out"] = a.games_outdoor.astype(int)
+
+    # Empirical Bayes: between-QB variance by DerSimonian-Laird.
+    d = r["d_obs"].values
+    vs = r["var_split"].values
+    wq = 1.0 / vs
+    mu = np.sum(wq * d) / np.sum(wq)
+    Q = float(np.sum(wq * (d - mu) ** 2))
+    k = len(d)
+    c_dl = np.sum(wq) - np.sum(wq ** 2) / np.sum(wq)
+    var_between = max(0.0, (Q - (k - 1)) / c_dl)
+
+    r["w"] = var_between / (var_between + r.var_split)
+    r["d_hat"] = r.w * r.d_obs + (1 - r.w) * d_league
+    r["se_dhat"] = np.sqrt(r.w * r.var_split)
+
+    r = r.sort_values("att_all", ascending=False)
+    players = []
+    for pid, row in r.iterrows():
+        players.append({
+            "id": pid, "name": names.get(pid, pid),
+            "c_all": round(float(row.c_all), 5),
+            "p_in": round(float(row.p_in), 4),
+            "c_in_obs": round(float(row.c_in), 5),
+            "c_out_obs": round(float(row.c_out), 5),
+            "d_obs": round(float(row.d_obs), 5),
+            "d_hat": round(float(row.d_hat), 5),
+            "se_dhat": round(float(row.se_dhat), 5),
+            "se_c_all": round(float(row.se_c_all), 5),
+            "w": round(float(row.w), 3),
+            "games_in": int(row.games_in), "games_out": int(row.games_out),
+            "rd_in": int(row.rd_in), "rd_out": int(row.rd_out),
         })
 
-    return sorted(rows, key=lambda r: r["name"])
-
-
-def _default_effects() -> dict:
-    """Fallback effects when no data is available."""
-    return {
-        "dome":  0.012,
-        "clear": 0.000,
-        "wind": -0.015,
-        "rain": -0.010,
-        "cold": -0.008,
-        "snow": -0.022,
+    out = {
+        "meta": {
+            "season_start": SEASON_START, "season_end": SEASON_END,
+            "min_att_per_game": MIN_ATT_PER_GAME,
+            "min_games_per_env": MIN_GAMES_PER_ENV,
+            "road_only": ROAD_ONLY, "season_type": "regular season",
+            "n_players": len(players),
+        },
+        "league": {
+            "c_in": round(float(c_in_league), 5),
+            "c_out": round(float(c_out_league), 5),
+            "d_league": round(float(d_league), 5),
+            "var_between": float(var_between),
+            "sd_between": round(float(np.sqrt(var_between)), 5),
+            "Q": round(Q, 1), "Q_df": int(k - 1),
+        },
+        "players": players,
     }
+    with open("model.json", "w") as f:
+        json.dump(out, f, indent=1)
 
-
-def _default_effects_meta() -> dict:
-    """Fallback metadata when no data is available."""
-    keys = ["dome", "clear", "wind", "rain", "cold", "snow"]
-    return {k: {"raw_effect": 0.0, "n_plays": 0, "ci_lo": 0.0, "ci_hi": 0.0} for k in keys}
-
-
-def _write_model(model: dict) -> None:
-    with open("model.json", "w", encoding="utf-8") as fh:
-        json.dump(model, fh, indent=2)
-    print(f"  model.json written ({len(json.dumps(model)):,} bytes).")
+    print(f"road_only={ROAD_ONLY}  players={len(players)}")
+    print(f"league (road) indoor {c_in_league:.4f} outdoor {c_out_league:.4f} "
+          f"delta {d_league*100:+.2f} pts")
+    print(f"sd_between {np.sqrt(var_between)*100:.2f} pts  Q={Q:.1f} df={k-1}")
+    print("\nexamples:")
+    for nm in ["T.Brady", "D.Brees", "P.Manning", "M.Ryan", "A.Rodgers"]:
+        p = next((x for x in players if x["name"] == nm), None)
+        if p:
+            print(f"  {nm:>12}  career {p['c_all']*100:.1f}%  d_hat {p['d_hat']*100:+.2f}  "
+                  f"w {p['w']:.2f}  road gms {p['rd_in']}/{p['rd_out']}  "
+                  f"(career {p['games_in']}/{p['games_out']})")
 
 
 if __name__ == "__main__":
