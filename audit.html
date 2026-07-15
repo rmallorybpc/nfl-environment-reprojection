@@ -1,895 +1,473 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Audit — QB Environment Reprojection — TMG</title>
-  <meta name="description" content="Methodology audit for the TMG QB environment reprojection model: data sources, modelling decisions, and validation." />
-  <style>
-    /* TMG Design System — tmg.css */
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit — NFL environment reprojection — The Mallory Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
 
-/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<!-- TMG design system v2.0 (tmg.css inlined). Swap for the CDN link if preferred:
+     <link rel="stylesheet" href="https://rmallorybpc.github.io/tmg-brand-guide/dist/tmg.css"> -->
+<style id="tmg-system">
+/* ============================================================
+   TMG Design System — The Mallory Group
+   dist/tmg.css — v2.0
 
+   CDN usage (add to every repo <head>):
+   <link rel="stylesheet" href="https://rmallorybpc.github.io/tmg-brand-guide/dist/tmg.css">
+
+   Google Font (add above the CSS link):
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+   ============================================================ */
+
+
+/* ── 1. Tokens ─────────────────────────────────────────────── */
 :root {
-  /* Colour tokens */
-  --tmg-navy:       #0a1628;
-  --tmg-navy-mid:   #12233f;
-  --tmg-navy-light: #1c3459;
-  --tmg-gold:       #c8a84b;
-  --tmg-gold-light: #e2c97e;
-  --tmg-white:      #f5f7fa;
-  --tmg-muted:      #8a9ab5;
-  --tmg-border:     #2a3f5f;
-  --tmg-success:    #4caf7d;
-  --tmg-danger:     #e05c5c;
-  --tmg-neutral:    #6b7fa3;
+  /* Palette */
+  --tmg-cream:        #FDFCF0;
+  --tmg-charcoal:     #2D3436;
+  --tmg-sage:         #84A98C;
+  --tmg-sage-hover:   #6B8F74;
+  --tmg-white:        #FFFFFF;
 
-  /* Typography */
-  --font-sans:  "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono:  "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  /* Semantic */
+  --tmg-bg:           var(--tmg-cream);
+  --tmg-text:         var(--tmg-charcoal);
+  --tmg-accent:       var(--tmg-sage);
+  --tmg-surface:      var(--tmg-white);
 
-  /* Spacing scale */
-  --space-1:  0.25rem;
-  --space-2:  0.5rem;
-  --space-3:  0.75rem;
-  --space-4:  1rem;
-  --space-5:  1.5rem;
-  --space-6:  2rem;
-  --space-8:  3rem;
-  --space-10: 4rem;
+  /* Status */
+  --tmg-success:      #2E8540;
+  --tmg-warning:      #C47F00;
+  --tmg-error:        #B00020;
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* Borders */
+  --tmg-border:       1px solid rgba(45, 52, 54, 0.12);
+  --tmg-border-hover: 1px solid rgba(132, 169, 140, 0.50);
 
-  /* Shadow */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.6);
+  /* Radii */
+  --tmg-bento-radius: 16px;
+  --tmg-nav-radius:   8px;
+  --tmg-btn-radius:   8px;
+
+  /* Spacing */
+  --tmg-gap:          24px;
+  --tmg-gap-sm:       12px;
+
+  /* Elevation */
+  --tmg-shadow-sm:    0 1px 3px rgba(45, 52, 54, 0.08);
+  --tmg-shadow-md:    0 2px 8px rgba(45, 52, 54, 0.10);
 }
 
-html {
-  font-size: 16px;
-  scroll-behavior: smooth;
-}
+
+/* ── 2. Reset & base ───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
-  font-family: var(--font-sans);
-  background: var(--tmg-navy);
-  color: var(--tmg-white);
-  line-height: 1.6;
-  min-height: 100vh;
-}
-
-/* ─── Typography ────────────────────────────────────────────────────────────── */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--tmg-white);
-}
-
-h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
-h2 { font-size: clamp(1.35rem, 3vw, 1.85rem); }
-h3 { font-size: clamp(1.1rem, 2.5vw, 1.35rem); }
-h4 { font-size: 1.1rem; }
-
-p { margin-bottom: var(--space-4); color: var(--tmg-white); }
-p:last-child { margin-bottom: 0; }
-
-a { color: var(--tmg-gold); text-decoration: none; }
-a:hover { color: var(--tmg-gold-light); text-decoration: underline; }
-
-code, pre {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
-}
-
-code {
-  background: var(--tmg-navy-light);
-  color: var(--tmg-gold-light);
-  padding: 0.15em 0.4em;
-  border-radius: var(--radius-sm);
-}
-
-pre {
-  background: var(--tmg-navy-mid);
-  border: 1px solid var(--tmg-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  overflow-x: auto;
-  margin-bottom: var(--space-4);
-}
-
-pre code {
-  background: none;
-  padding: 0;
-  color: var(--tmg-white);
-}
-
-small, .text-sm { font-size: 0.875rem; }
-.text-xs        { font-size: 0.75rem; }
-.text-muted     { color: var(--tmg-muted); }
-.text-gold      { color: var(--tmg-gold); }
-.text-success   { color: var(--tmg-success); }
-.text-danger    { color: var(--tmg-danger); }
-.text-center    { text-align: center; }
-.text-right     { text-align: right; }
-
-/* ─── Layout ────────────────────────────────────────────────────────────────── */
-.container {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 var(--space-5);
-}
-
-.container--narrow { max-width: 760px; }
-.container--wide   { max-width: 1400px; }
-
-.page-wrap {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  padding: var(--space-8) 0;
-}
-
-/* Grid */
-.grid         { display: grid; gap: var(--space-5); }
-.grid--2      { grid-template-columns: repeat(2, 1fr); }
-.grid--3      { grid-template-columns: repeat(3, 1fr); }
-.grid--4      { grid-template-columns: repeat(4, 1fr); }
-.grid--auto   { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-
-@media (max-width: 768px) {
-  .grid--2,
-  .grid--3,
-  .grid--4 { grid-template-columns: 1fr; }
-}
-
-/* Flex helpers */
-.flex         { display: flex; }
-.flex-wrap    { flex-wrap: wrap; }
-.flex-col     { flex-direction: column; }
-.items-center { align-items: center; }
-.items-start  { align-items: flex-start; }
-.justify-between { justify-content: space-between; }
-.justify-center  { justify-content: center; }
-.gap-2        { gap: var(--space-2); }
-.gap-3        { gap: var(--space-3); }
-.gap-4        { gap: var(--space-4); }
-.gap-5        { gap: var(--space-5); }
-
-/* ─── Header / Nav ──────────────────────────────────────────────────────────── */
-.site-header {
-  background: var(--tmg-navy-mid);
-  border-bottom: 2px solid var(--tmg-gold);
-  padding: var(--space-4) 0;
-}
-
-.site-header .container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.site-logo {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--tmg-gold);
-  letter-spacing: -0.02em;
-  text-decoration: none;
-}
-
-.site-logo:hover { color: var(--tmg-gold-light); text-decoration: none; }
-
-.site-nav { display: flex; gap: var(--space-4); align-items: center; }
-
-.site-nav a {
-  color: var(--tmg-muted);
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.site-nav a:hover,
-.site-nav a.active { color: var(--tmg-white); text-decoration: none; }
-
-/* ─── Hero / Page Title ─────────────────────────────────────────────────────── */
-.page-hero {
-  padding: var(--space-8) 0 var(--space-6);
-  border-bottom: 1px solid var(--tmg-border);
-  margin-bottom: var(--space-6);
-}
-
-.page-hero .eyebrow {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tmg-gold);
-  margin-bottom: var(--space-2);
-}
-
-.page-hero h1 { margin-bottom: var(--space-3); }
-
-.page-hero .subtitle {
-  font-size: 1.1rem;
-  color: var(--tmg-muted);
-  max-width: 640px;
-}
-
-/* ─── Cards ─────────────────────────────────────────────────────────────────── */
-.card {
-  background: var(--tmg-navy-mid);
-  border: 1px solid var(--tmg-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
-}
-
-.card--highlight {
-  border-color: var(--tmg-gold);
-}
-
-.card__title {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--tmg-muted);
-  margin-bottom: var(--space-2);
-}
-
-.card__value {
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: var(--tmg-white);
-  line-height: 1;
-}
-
-.card__delta {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: var(--space-1);
-}
-
-.card__delta--pos { color: var(--tmg-success); }
-.card__delta--neg { color: var(--tmg-danger); }
-.card__delta--neu { color: var(--tmg-muted); }
-
-/* ─── Form Controls ─────────────────────────────────────────────────────────── */
-.form-group {
-  margin-bottom: var(--space-4);
-}
-
-label {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--tmg-muted);
-  margin-bottom: var(--space-1);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-input[type="text"],
-input[type="number"],
-select,
-textarea {
-  width: 100%;
-  background: var(--tmg-navy-light);
-  border: 1px solid var(--tmg-border);
-  border-radius: var(--radius-md);
-  color: var(--tmg-white);
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  padding: var(--space-3) var(--space-4);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  appearance: none;
-}
-
-input[type="text"]:focus,
-input[type="number"]:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--tmg-gold);
-  box-shadow: 0 0 0 3px rgba(200, 168, 75, 0.2);
-}
-
-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a9ab5' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right var(--space-4) center;
-  padding-right: var(--space-8);
-}
-
-/* Range Slider */
-input[type="range"] {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--tmg-navy-light);
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  accent-color: var(--tmg-gold);
-}
-
-.range-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.range-value {
-  min-width: 3.5rem;
-  text-align: right;
-  font-weight: 700;
-  color: var(--tmg-gold);
-  font-size: 1.05rem;
-}
-
-/* ─── Buttons ────────────────────────────────────────────────────────────────── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
-  border: none;
-  border-radius: var(--radius-md);
-  font-family: var(--font-sans);
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-  letter-spacing: 0.03em;
-}
-
-.btn:active { transform: translateY(1px); }
-
-.btn--primary {
-  background: var(--tmg-gold);
-  color: var(--tmg-navy);
-}
-
-.btn--primary:hover {
-  background: var(--tmg-gold-light);
-  color: var(--tmg-navy);
-  text-decoration: none;
-}
-
-.btn--ghost {
-  background: transparent;
-  color: var(--tmg-gold);
-  border: 1px solid var(--tmg-gold);
-}
-
-.btn--ghost:hover {
-  background: rgba(200, 168, 75, 0.1);
-  text-decoration: none;
-}
-
-.btn--sm {
-  padding: var(--space-2) var(--space-4);
-  font-size: 0.8rem;
-}
-
-/* ─── Section Dividers ──────────────────────────────────────────────────────── */
-.section {
-  margin-bottom: var(--space-8);
-}
-
-.section__header {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--tmg-border);
-}
-
-.section__title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--tmg-white);
-}
-
-.section__note {
-  font-size: 0.8rem;
-  color: var(--tmg-muted);
-}
-
-/* ─── Result Display ─────────────────────────────────────────────────────────── */
-.result-block {
-  background: var(--tmg-navy-light);
-  border: 1px solid var(--tmg-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  text-align: center;
-}
-
-.result-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tmg-muted);
-  margin-bottom: var(--space-2);
-}
-
-.result-value {
-  font-size: 3rem;
-  font-weight: 900;
-  color: var(--tmg-gold);
-  line-height: 1;
-}
-
-.result-value--secondary {
-  font-size: 2rem;
-  color: var(--tmg-white);
-}
-
-.result-delta {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-top: var(--space-2);
-}
-
-/* ─── Table ──────────────────────────────────────────────────────────────────── */
-.table-wrap { overflow-x: auto; }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-thead th {
-  background: var(--tmg-navy-light);
-  color: var(--tmg-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-  border-bottom: 1px solid var(--tmg-border);
-}
-
-tbody td {
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid rgba(42, 63, 95, 0.5);
-  color: var(--tmg-white);
-}
-
-tbody tr:hover td { background: rgba(255,255,255,0.03); }
-
-tbody tr:last-child td { border-bottom: none; }
-
-.td-right { text-align: right; }
-.td-mono  { font-family: var(--font-mono); }
-
-/* ─── Tooltip / Info ─────────────────────────────────────────────────────────── */
-.tooltip-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.1em;
-  height: 1.1em;
-  border-radius: 50%;
-  background: var(--tmg-navy-light);
-  border: 1px solid var(--tmg-border);
-  font-size: 0.65em;
-  color: var(--tmg-muted);
-  cursor: help;
-  vertical-align: middle;
-  margin-left: var(--space-1);
-}
-
-/* ─── Callout / Explainer ────────────────────────────────────────────────────── */
-.callout {
-  background: var(--tmg-navy-mid);
-  border-left: 3px solid var(--tmg-gold);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  padding: var(--space-4) var(--space-5);
-  margin-bottom: var(--space-5);
-}
-
-.callout--info  { border-color: var(--tmg-neutral); }
-.callout--warn  { border-color: #e0a05c; }
-.callout--good  { border-color: var(--tmg-success); }
-
-.callout p:last-child { margin-bottom: 0; }
-
-/* ─── Footer ─────────────────────────────────────────────────────────────────── */
-.site-footer {
-  background: var(--tmg-navy-mid);
-  border-top: 1px solid var(--tmg-border);
-  padding: var(--space-6) 0;
-  margin-top: auto;
-}
-
-.site-footer .container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.site-footer p {
-  font-size: 0.8rem;
-  color: var(--tmg-muted);
+  background: var(--tmg-bg);
+  color: var(--tmg-text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
   margin: 0;
 }
 
-/* ─── Utility ────────────────────────────────────────────────────────────────── */
-.hidden  { display: none !important; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-.mt-1 { margin-top: var(--space-1); }
-.mt-2 { margin-top: var(--space-2); }
-.mt-3 { margin-top: var(--space-3); }
-.mt-4 { margin-top: var(--space-4); }
-.mt-5 { margin-top: var(--space-5); }
-.mt-6 { margin-top: var(--space-6); }
-.mb-1 { margin-bottom: var(--space-1); }
-.mb-2 { margin-bottom: var(--space-2); }
-.mb-3 { margin-bottom: var(--space-3); }
-.mb-4 { margin-bottom: var(--space-4); }
-.mb-5 { margin-bottom: var(--space-5); }
-.mb-6 { margin-bottom: var(--space-6); }
-.w-full { width: 100%; }
+:focus-visible {
+  outline: 3px solid rgba(132, 169, 140, 0.40);
+  outline-offset: 2px;
+}
 
-  </style>
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+
+/* ── 3. Typography ─────────────────────────────────────────── */
+.tmg-eyebrow    { font-size: 13px;  font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tmg-sage); margin: 0 0 4px; }
+.tmg-h1         { font-size: 28px;  font-weight: 500; line-height: 1.3; color: var(--tmg-charcoal); margin: 0 0 8px; }
+.tmg-h2         { font-size: 20px;  font-weight: 500; line-height: 1.3; color: var(--tmg-charcoal); margin: 0 0 6px; }
+.tmg-h3         { font-size: 16px;  font-weight: 500; line-height: 1.3; color: var(--tmg-charcoal); margin: 0 0 6px; }
+.tmg-body       { font-size: 16px;  font-weight: 400; line-height: 1.7; color: var(--tmg-charcoal); }
+.tmg-body-sm    { font-size: 13px;  font-weight: 400; color: var(--tmg-charcoal); }
+.tmg-label      { font-size: 13px;  font-weight: 500; color: var(--tmg-charcoal); }
+.tmg-label-caps { font-size: 12px;  font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(45,52,54,0.50); }
+.tmg-metric     { font-size: 28px;  font-weight: 500; color: var(--tmg-charcoal); }
+.tmg-text-muted { color: rgba(45, 52, 54, 0.55); }
+.tmg-text-accent{ color: var(--tmg-sage); }
+
+
+/* ── 4. Navigation ─────────────────────────────────────────── */
+.tmg-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--tmg-white); border-bottom: var(--tmg-border);
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.tmg-logo {
+  display: flex; align-items: center;
+  font-size: 17px; font-weight: 500; letter-spacing: 0.02em;
+  color: var(--tmg-charcoal); text-decoration: none;
+}
+
+.tmg-logo-divider {
+  width: 2px; height: 20px;
+  background: var(--tmg-sage); border-radius: 2px; margin: 0 1px;
+}
+
+.tmg-dropdown-wrap { position: relative; }
+
+.tmg-dropdown-btn {
+  background: transparent; border: 1px solid rgba(45,52,54,0.20);
+  border-radius: var(--tmg-btn-radius); padding: 7px 14px;
+  font-size: 13px; font-weight: 500; color: var(--tmg-charcoal);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-family: inherit; transition: background 0.15s;
+}
+.tmg-dropdown-btn:hover,
+.tmg-dropdown-btn.open          { background: rgba(132,169,140,0.10); }
+.tmg-dropdown-btn:focus-visible { outline: 3px solid rgba(132,169,140,0.35); outline-offset: 2px; }
+
+.tmg-chevron { transition: transform 0.2s; flex-shrink: 0; }
+.tmg-dropdown-btn.open .tmg-chevron { transform: rotate(180deg); }
+
+.tmg-dropdown-menu {
+  display: none; position: absolute; right: 0; top: calc(100% + 6px);
+  background: var(--tmg-white); border: var(--tmg-border);
+  border-radius: 10px; padding: 6px; min-width: 220px;
+  z-index: 200; box-shadow: var(--tmg-shadow-md);
+}
+.tmg-dropdown-menu.open { display: block; }
+
+.tmg-dropdown-menu a {
+  display: block; padding: 8px 12px; border-radius: 6px;
+  font-size: 13px; color: var(--tmg-charcoal); text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.tmg-dropdown-menu a:hover          { background: rgba(132,169,140,0.12); color: var(--tmg-sage-hover); }
+.tmg-dropdown-menu a:focus-visible  { outline: 2px solid var(--tmg-sage); outline-offset: -2px; border-radius: 6px; }
+
+
+/* ── 5. Layout ─────────────────────────────────────────────── */
+.tmg-page {
+  background: var(--tmg-bg);
+  min-height: 100vh;
+  padding: var(--tmg-gap);
+}
+
+.tmg-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.tmg-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--tmg-gap);
+}
+
+.tmg-page-header { margin-bottom: var(--tmg-gap); }
+.tmg-page-title  { font-size: 28px; font-weight: 500; color: var(--tmg-charcoal); margin: 0 0 8px; line-height: 1.3; }
+.tmg-page-desc   { font-size: 15px; color: rgba(45,52,54,0.60); margin: 0; }
+
+.tmg-footer {
+  padding: 20px 24px; text-align: center;
+  font-size: 13px; color: rgba(45,52,54,0.50);
+  border-top: var(--tmg-border); margin-top: var(--tmg-gap);
+}
+
+
+/* ── 6. Cards ──────────────────────────────────────────────── */
+.tmg-card {
+  background: var(--tmg-white);
+  border: var(--tmg-border);
+  border-radius: var(--tmg-bento-radius);
+  padding: 20px;
+}
+
+.tmg-card-wide {
+  background: var(--tmg-white);
+  border: var(--tmg-border);
+  border-radius: var(--tmg-bento-radius);
+  padding: 24px;
+  grid-column: 1 / -1;
+}
+
+.tmg-card-label { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(45,52,54,0.50); margin: 0 0 8px; }
+.tmg-card-title { font-size: 16px; font-weight: 500; color: var(--tmg-charcoal); margin: 0 0 14px; }
+.tmg-card-value { font-size: 28px; font-weight: 500; color: var(--tmg-charcoal); margin: 0 0 4px; }
+.tmg-card-sub   { font-size: 12px; color: var(--tmg-sage); margin: 0; }
+.tmg-trend-up   { color: var(--tmg-success); font-size: 13px; font-weight: 500; }
+.tmg-trend-down { color: var(--tmg-error);   font-size: 13px; font-weight: 500; }
+
+
+/* ── 7. Buttons ────────────────────────────────────────────── */
+.tmg-btn {
+  background: var(--tmg-charcoal); color: var(--tmg-white);
+  border: none; border-radius: var(--tmg-btn-radius);
+  padding: 10px 16px; font-size: 13px; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-family: inherit; transition: background 0.15s;
+}
+.tmg-btn:hover          { background: #3D4446; }
+.tmg-btn:active         { transform: scale(0.98); }
+.tmg-btn:focus-visible  { outline: 3px solid rgba(45,52,54,0.20); outline-offset: 2px; }
+
+.tmg-btn-ghost {
+  background: transparent; color: var(--tmg-charcoal);
+  border: 1px solid rgba(45,52,54,0.20); border-radius: var(--tmg-btn-radius);
+  padding: 10px 16px; font-size: 13px; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-family: inherit; transition: border-color 0.15s, color 0.15s;
+}
+.tmg-btn-ghost:hover         { border-color: var(--tmg-sage); color: var(--tmg-sage-hover); }
+.tmg-btn-ghost:active        { transform: scale(0.98); }
+.tmg-btn-ghost:focus-visible { outline: 3px solid rgba(132,169,140,0.35); outline-offset: 2px; }
+
+
+/* ── 8. Tables ─────────────────────────────────────────────── */
+.tmg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.tmg-table th {
+  background: rgba(132,169,140,0.15); color: var(--tmg-charcoal);
+  font-weight: 500; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 9px 14px; text-align: left;
+  border-bottom: 1px solid rgba(132,169,140,0.25);
+}
+
+.tmg-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(45,52,54,0.07);
+  color: var(--tmg-charcoal);
+}
+
+.tmg-table tr:last-child td { border-bottom: none; }
+.tmg-table tr:hover td      { background: rgba(132,169,140,0.04); }
+
+
+/* ── 9. Form inputs ────────────────────────────────────────── */
+.tmg-input,
+.tmg-select,
+.tmg-textarea {
+  width: 100%; background: var(--tmg-white); color: var(--tmg-charcoal);
+  border: var(--tmg-border); border-radius: var(--tmg-btn-radius);
+  padding: 9px 12px; font-size: 14px; font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s; box-sizing: border-box;
+}
+.tmg-input:focus,
+.tmg-select:focus,
+.tmg-textarea:focus {
+  outline: none; border-color: var(--tmg-sage);
+  box-shadow: 0 0 0 3px rgba(132,169,140,0.15);
+}
+.tmg-input::placeholder { color: rgba(45,52,54,0.35); }
+
+.tmg-field-label {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--tmg-charcoal); margin-bottom: 6px;
+}
+
+</style>
+
+<style>
+  .backlink { display: inline-block; margin-top: 10px; font-size: 13px; }
+  .stack > * + * { margin-top: var(--tmg-gap); }
+
+  .status { font-weight: 500; white-space: nowrap; }
+  .status.verified { color: var(--tmg-success); }
+  .status.soft     { color: var(--tmg-warning); }
+  .status.wrong    { color: var(--tmg-error); }
+
+  .decision + .decision { margin-top: 14px; padding-top: 14px; border-top: var(--tmg-border); }
+  .decision h3 { font-size: 16px; font-weight: 500; color: var(--tmg-charcoal); margin: 0 0 6px; }
+  .decision p  { margin: 0 0 6px; }
+
+  .spot { border-left: 3px solid var(--tmg-warning); padding: 2px 0 2px 12px; margin-top: 8px; }
+  .spot .lab { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tmg-warning); margin-bottom: 2px; }
+  .spot p { margin: 0; font-size: 13px; color: rgba(45,52,54,0.75); }
+  .spot.done { border-left-color: var(--tmg-success); }
+  .spot.done .lab { color: var(--tmg-success); }
+
+  .caught { border: 1px solid rgba(196,127,0,0.45); background: rgba(196,127,0,0.05); }
+
+  .verdict { border: 1px solid rgba(132,169,140,0.5); background: rgba(132,169,140,0.06); }
+  .verdict .tmg-card-title { color: var(--tmg-sage-hover); }
+
+  ul.tight { margin: 6px 0 0; padding-left: 18px; }
+  ul.tight li { margin-bottom: 6px; font-size: 14px; }
+  .src { font-size: 12px; color: rgba(45,52,54,0.55); }
+  .method-table-wrap { overflow-x: auto; }
+</style>
 </head>
-<body class="page-wrap">
+<body>
 
-  <header class="site-header">
-    <div class="container">
-      <a href="index.html" class="site-logo">TMG Analytics</a>
-      <nav class="site-nav">
-        <a href="index.html">Tool</a>
-        <a href="audit.html" class="active">Audit</a>
-      </nav>
+<nav class="tmg-nav" role="banner">
+  <div class="tmg-logo" aria-label="The Mallory Group">
+    <span>TM</span>
+    <div class="tmg-logo-divider" aria-hidden="true"></div>
+    <span>G</span>
+  </div>
+  <div class="tmg-dropdown-wrap">
+    <button class="tmg-dropdown-btn" id="tmgDdBtn"
+            aria-haspopup="true" aria-expanded="false" aria-controls="tmgDdMenu">
+      TMG Tool Suite
+      <svg class="tmg-chevron" viewBox="0 0 12 12" fill="none" width="12" height="12" aria-hidden="true">
+        <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="tmg-dropdown-menu" id="tmgDdMenu" role="menu">
+      <a href="https://rmallorybpc.github.io/nhl-free-agency-research/welcome.html" target="_blank" rel="noreferrer" role="menuitem">NHL Free Agency Research</a>
+      <a href="https://rmallorybpc.github.io/nflanalysis/dashboard/src/findings.html?season=2022&team_id=PHI" target="_blank" rel="noreferrer" role="menuitem">NFL Analysis</a>
+      <a href="https://rmallorybpc.github.io/nba-research-project/" target="_blank" rel="noreferrer" role="menuitem">NBA Supermax Research</a>
+      <a href="https://rmallorybpc.github.io/nhl-play-for-contract/" target="_blank" rel="noreferrer" role="menuitem">NHL Play for Contract</a>
+      <a href="https://rmallorybpc.github.io/talent-portability-research/" target="_blank" rel="noreferrer" role="menuitem">Talent Portability Research</a>
+      <a href="https://rmallorybpc.github.io/external-hire-premium/" target="_blank" rel="noreferrer" role="menuitem">External Hire Premium</a>
+      <a href="https://rmallorybpc.github.io/nfl-coach-continuity/" target="_blank" rel="noreferrer" role="menuitem">NFL Coach Continuity</a>
+      <a href="https://rmallorybpc.github.io/recipes/" target="_blank" rel="noreferrer" role="menuitem">Recipe Book</a>
+      <a href="https://rmallorybpc.github.io/pdf-multi-agent-analysis/" target="_blank" rel="noreferrer" role="menuitem">PDF Multi-Agent Analysis</a>
+      <a href="https://content-integrity-audit.pages.dev/" target="_blank" rel="noreferrer" role="menuitem">Content Integrity</a>
+      <a href="https://rmallorybpc.github.io/housing-market-intel/" target="_blank" rel="noreferrer" role="menuitem">Housing Market Intel</a>
+      <a href="https://rmallorybpc.github.io/real-estate-report/" target="_blank" rel="noreferrer" role="menuitem">Real Estate Report</a>
     </div>
-  </header>
+  </div>
+</nav>
 
-  <main class="main-content">
-    <div class="container container--narrow">
+<div class="tmg-page tmg-container stack">
 
-      <div class="page-hero">
-        <p class="eyebrow">Methodology Audit</p>
-        <h1>QB Environment Reprojection</h1>
-        <p class="subtitle">
-          Full transparency on every modelling decision, data source, assumption,
-          and known limitation in the environment reprojection system.
-        </p>
-      </div>
+  <div class="tmg-page-header">
+    <p class="tmg-eyebrow">NFL environment reprojection</p>
+    <h1 class="tmg-page-title">Audit of the build decisions</h1>
+    <p class="tmg-page-desc">Every consequential choice, the reason for it, the option it beat, and where it is weak. Written in a hostile posture: assume the soft spot until shown otherwise.</p>
+    <a class="backlink" href="index.html">&#8592; Back to the tool</a>
+  </div>
 
-      <!-- ── 1. Overview ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">1 · Overview</h2>
-        </div>
-        <p>
-          A quarterback's raw completion percentage conflates skill with context.
-          Playing in a climate-controlled dome, on a sunny autumn afternoon, or
-          in a driving snowstorm all shift the completion-probability surface
-          independently of the QB's talent. This tool removes those environmental
-          contributions so analysts can compare QBs on a common baseline.
-        </p>
-        <p>
-          The reprojection formula is:
-        </p>
-        <pre><code>Comp%_neutral = Comp%_observed − Σ (effect_i × exposure_i)</code></pre>
-        <p>
-          where each <em>effect_i</em> is a learned regression coefficient
-          (shrunk toward the league mean) and <em>exposure_i</em> is the
-          fraction of a QB's dropbacks under condition <em>i</em>.
-        </p>
-      </section>
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">Summary</h2>
+    <p class="tmg-body">This audits the build, not the code style. The tool is a stylized projection, not a causal or predictive model, and it says so on its face. Its foundation holds: a dome lifts completion percentage by about two and a half to three points, re-derived from the play-by-play and corroborated by independent public sources. The single real error during the build was a shrinkage step that flattened every quarterback to the league mean. It was caught and fixed. The home-field confound flagged in the first version is now removed: the environment effect is measured on road games only, so home-field advantage no longer rides along inside it. The correction is not cosmetic. Drew Brees, long seen as a dome quarterback, drops from a +3.8 raw split to a +2.4 clean effect once his home dome games are set aside. Most of his dome edge was home-field advantage. One honest weakness remains: the environment axis is really weather, not the roof.</p>
+  </div>
 
-      <!-- ── 2. Data Sources ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">2 · Data Sources</h2>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Contents</th>
-                <th>Seasons</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a> pbp</td>
-                <td>Play-by-play with completion, air yards, weather fields</td>
-                <td>2016 – present</td>
-              </tr>
-              <tr>
-                <td>nflverse stadiums</td>
-                <td>Stadium type (dome / retractable / outdoor), surface</td>
-                <td>All</td>
-              </tr>
-              <tr>
-                <td>nflverse weather</td>
-                <td>Temperature, wind speed, precipitation flag</td>
-                <td>2016 – present</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="callout callout--info mt-4">
-          <p class="text-sm">
-            <strong>Refresh cadence:</strong> The model is rebuilt on every push
-            to <code>main</code> via GitHub Actions, so coefficients always
-            reflect the latest published nflverse data.
-          </p>
-        </div>
-      </section>
-
-      <!-- ── 3. Feature Engineering ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">3 · Feature Engineering</h2>
-        </div>
-
-        <h3 class="mb-3">3.1 · Dome Indicator</h3>
-        <p>
-          Each stadium is classified as <em>dome</em> (always closed),
-          <em>retractable</em> (partially indoor), or <em>outdoor</em>.
-          Retractable-roof stadiums are assigned a historical open/closed
-          fraction derived from the nflverse stadium metadata.
-          A per-play dome flag is computed and aggregated to a per-QB
-          seasonal dome snap share.
-        </p>
-
-        <h3 class="mb-3 mt-5">3.2 · Weather Buckets</h3>
-        <p>
-          Outdoor plays are bucketed into five weather conditions:
-        </p>
-        <ul style="padding-left:1.5rem; margin-bottom:var(--space-4);">
-          <li><strong>Clear / Mild</strong> — baseline (wind &lt;15 mph, temp ≥35 °F, no precipitation)</li>
-          <li><strong>High Wind</strong> — wind speed ≥15 mph</li>
-          <li><strong>Rain</strong> — precipitation flag set, temp ≥35 °F</li>
-          <li><strong>Cold</strong> — temp &lt;35 °F, no precipitation</li>
-          <li><strong>Snow</strong> — precipitation flag set, temp &lt;35 °F</li>
-        </ul>
-        <p>
-          Dome plays are always assigned <em>Clear / Mild</em> regardless of
-          reported weather, preventing dome roof status from double-counting.
-        </p>
-
-        <h3 class="mb-3 mt-5">3.3 · Covariates in Regression</h3>
-        <p>
-          To isolate environment from talent and usage, the regression
-          conditions on:
-        </p>
-        <ul style="padding-left:1.5rem; margin-bottom:var(--space-4);">
-          <li>Intended air yards (binned into 5 buckets)</li>
-          <li>Down &amp; distance bucket (short/medium/long)</li>
-          <li>Coverage shell (man / zone / unknown)</li>
-          <li>Season (fixed effects)</li>
-        </ul>
-      </section>
-
-      <!-- ── 4. Shrinkage Model ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">4 · Shrinkage Model</h2>
-        </div>
-        <p>
-          Raw environment coefficients are estimated via an OLS regression on
-          individual pass attempts (binary outcome: complete / incomplete).
-          Coefficient estimates are then shrunk toward the cross-sample mean
-          using an empirical Bayes approach:
-        </p>
-        <pre><code>θ̂_shrunk = (n_i / (n_i + κ)) × θ̂_raw + (κ / (n_i + κ)) × μ̄</code></pre>
-        <p>
-          where <em>n_i</em> is the sample size for condition <em>i</em>,
-          <em>κ</em> is the prior pseudo-count (tuned by cross-validation),
-          and <em>μ̄</em> is the grand-mean effect across conditions.
-          This prevents the model from over-fitting to small-sample weather
-          combinations (e.g., the handful of snow games each season).
-        </p>
-
-        <div class="callout mt-4">
-          <p class="text-sm">
-            <strong>Key assumption:</strong> Environment effects are additive and
-            separable from QB skill. The model does not attempt to capture
-            QB × Environment interactions (e.g., a QB who is uniquely bad in wind).
-            Such interactions are typically within the noise at current sample sizes.
-          </p>
-        </div>
-      </section>
-
-      <!-- ── 5. Learned Coefficients ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">5 · Learned Coefficients</h2>
-          <span class="section__note">From latest model build</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Condition</th>
-                <th class="td-right">Effect (pp)</th>
-                <th class="td-right">95% CI</th>
-                <th class="td-right">n plays</th>
-              </tr>
-            </thead>
-            <tbody id="coeffs-tbody">
-              <!-- populated by inline script below -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ── 6. Validation ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">6 · Validation</h2>
-        </div>
-        <p>
-          Model quality is assessed via:
-        </p>
-        <ol style="padding-left:1.5rem; margin-bottom:var(--space-4);">
-          <li><strong>Leave-one-season-out CV</strong> — train on seasons T–1 and back, evaluate on season T.</li>
-          <li><strong>Year-over-year stability</strong> — Pearson correlation of environment-neutral Comp% across adjacent seasons vs. raw Comp%.</li>
-          <li><strong>Placebo test</strong> — null model (no environment adjustment) used as baseline.</li>
-        </ol>
-        <div class="card" id="validation-card">
-          <div class="grid grid--2">
-            <div>
-              <p class="card__title">YoY Correlation (raw Comp%)</p>
-              <p class="card__value" id="val-yoy-raw">—</p>
-            </div>
-            <div>
-              <p class="card__title">YoY Correlation (neutral Comp%)</p>
-              <p class="card__value" id="val-yoy-neutral">—</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── 7. Known Limitations ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">7 · Known Limitations</h2>
-        </div>
-        <ul style="padding-left:1.5rem;">
-          <li class="mb-3">
-            <strong>Weather data quality.</strong>
-            nflverse weather fields are sourced from game-level stadium reports,
-            not play-level sensor data. In-game changes (e.g., wind shifting at
-            halftime) are not captured.
-          </li>
-          <li class="mb-3">
-            <strong>Receiver quality.</strong>
-            The model does not adjust for receiver separation or drop rate,
-            which correlate with team-level environment (roster construction)
-            rather than QB environment per se.
-          </li>
-          <li class="mb-3">
-            <strong>Interaction effects.</strong>
-            Additive separability is assumed. A QB who significantly
-            outperforms his peers in bad weather would have his skill
-            attributed to environment, not the reverse. Interaction terms
-            require substantially more data to estimate reliably.
-          </li>
-          <li class="mb-3">
-            <strong>Playoff exclusion.</strong>
-            Postseason games are excluded from coefficient estimation to
-            avoid survivorship bias (only certain teams play in cold-weather
-            postseason games).
-          </li>
-        </ul>
-      </section>
-
-      <!-- ── 8. Changelog ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">8 · Changelog</h2>
-        </div>
-        <div id="changelog">
-          <!-- populated by inline script -->
-        </div>
-      </section>
-
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">Empirical claims</h2>
+    <div class="method-table-wrap">
+      <table class="tmg-table">
+        <thead>
+          <tr>
+            <th scope="col">Claim</th>
+            <th scope="col">Status</th>
+            <th scope="col">How it was checked</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>League dome effect is +2.7 points of completion percentage (indoor 63.1, outdoor 60.4), road games only, 1999&ndash;2024 regular season</td>
+            <td><span class="status verified">Verified</span></td>
+            <td>Re-derived from nflverse play-by-play, away games only. Corroborated independently: Sports Info Solutions reports a 2.6 point indoor advantage and at most about two points of schedule-driven swing; GiveMeSport reports 2.3 over ten seasons. Window and method differ, the delta agrees.</td>
+          </tr>
+          <tr>
+            <td>79 quarterbacks qualify at 8+ road games in each environment</td>
+            <td><span class="status verified">Verified</span></td>
+            <td>Deterministic count from the filter, given the thresholds. The home-and-away version held 106; restricting the effect to road games costs 27.</td>
+          </tr>
+          <tr>
+            <td>Between-quarterback spread is about 1.7 points, heterogeneity significant (Q = 113, df = 78)</td>
+            <td><span class="status soft">Soft</span></td>
+            <td>Computed with DerSimonian-Laird on road-only splits. Depends on a normal random-effects model. Public writeups agree the pattern exists: some quarterbacks split hard, others barely move.</td>
+          </tr>
+          <tr>
+            <td>Per-quarterback projections, for example Brady at +3.4 to a full dome schedule</td>
+            <td><span class="status soft">Soft</span></td>
+            <td>Point estimates from the shrinkage. Bands are wide and often as large as the swing. The tool shows the band.</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </main>
+    <p class="src" style="margin-top:10px">Sources: <a href="https://www.sportsinfosolutions.com/2020/05/06/dome-field-advantage-how-much-does-weather-affect-quarterback-play/" target="_blank" rel="noreferrer">Sports Info Solutions</a>, <a href="https://www.givemesport.com/how-stadium-types-affect-nfl-scoring/" target="_blank" rel="noreferrer">GiveMeSport</a>.</p>
+  </div>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>TMG Analytics · QB Environment Reprojection · <a href="index.html">Tool</a></p>
-      <p>Data: <a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a></p>
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">Decisions and their soft spots</h2>
+
+    <div class="decision">
+      <h3>Counterfactual method: shrinkage blend</h3>
+      <p class="tmg-body-sm">Each quarterback's own dome-minus-outdoor split is blended toward the league average, weighted by sample size. It beat a pure league transform, which is too flat, and a player-anchored split, which is too noisy on thin samples.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>It assumes every quarterback is drawn from one league-wide distribution of effects. They are not. Offenses and styles differ, and the shrinkage softens that assumption without removing it.</p></div>
     </div>
-  </footer>
 
-  <script>
-    // Model data injected by build_site.py
-    const MODEL = {"built_at":"2026-07-15","seasons":[],"effects":{"dome":0.012,"clear":0.0,"wind":-0.015,"rain":-0.01,"cold":-0.008,"snow":-0.022},"effects_meta":{"dome":{"raw_effect":0.012,"n_plays":0,"ci_lo":0.0,"ci_hi":0.024},"clear":{"raw_effect":0.0,"n_plays":0,"ci_lo":0.0,"ci_hi":0.0},"wind":{"raw_effect":-0.015,"n_plays":0,"ci_lo":-0.025,"ci_hi":-0.005},"rain":{"raw_effect":-0.01,"n_plays":0,"ci_lo":-0.018,"ci_hi":-0.002},"cold":{"raw_effect":-0.008,"n_plays":0,"ci_lo":-0.016,"ci_hi":0.0},"snow":{"raw_effect":-0.022,"n_plays":0,"ci_lo":-0.038,"ci_hi":-0.006}},"stadiums":[{"id":"allegiant-stadium","name":"Allegiant Stadium","type":"dome","dome_frac":1.0},{"id":"arrowhead-stadium","name":"Arrowhead Stadium","type":"outdoor","dome_frac":0.0},{"id":"att-stadium","name":"ATT Stadium","type":"retractable","dome_frac":0.7},{"id":"bank-of-america-stadium","name":"Bank of America Stadium","type":"outdoor","dome_frac":0.0},{"id":"caesars-superdome","name":"Caesars Superdome","type":"dome","dome_frac":1.0},{"id":"empower-field","name":"Empower Field","type":"outdoor","dome_frac":0.0},{"id":"era-stadium","name":"Highmark Stadium","type":"outdoor","dome_frac":0.0},{"id":"everbank-stadium","name":"EverBank Stadium","type":"outdoor","dome_frac":0.0},{"id":"fedex-field","name":"FedEx Field","type":"outdoor","dome_frac":0.0},{"id":"ford-field","name":"Ford Field","type":"dome","dome_frac":1.0},{"id":"gillette-stadium","name":"Gillette Stadium","type":"outdoor","dome_frac":0.0},{"id":"lambeau-field","name":"Lambeau Field","type":"outdoor","dome_frac":0.0},{"id":"levis-stadium","name":"Levi's Stadium","type":"outdoor","dome_frac":0.0},{"id":"lincoln-financial-field","name":"Lincoln Financial Field","type":"outdoor","dome_frac":0.0},{"id":"lucas-oil-stadium","name":"Lucas Oil Stadium","type":"dome","dome_frac":1.0},{"id":"mercedes-benz-stadium","name":"Mercedes-Benz Stadium","type":"retractable","dome_frac":1.0},{"id":"metlife-stadium","name":"MetLife Stadium","type":"outdoor","dome_frac":0.0},{"id":"nrg-stadium","name":"NRG Stadium","type":"retractable","dome_frac":0.65},{"id":"paycor-stadium","name":"Paycor Stadium","type":"outdoor","dome_frac":0.0},{"id":"sofi-stadium","name":"SoFi Stadium","type":"retractable","dome_frac":0.8},{"id":"soldier-field","name":"Soldier Field","type":"outdoor","dome_frac":0.0},{"id":"state-farm-stadium","name":"State Farm Stadium","type":"retractable","dome_frac":0.7},{"id":"tiaa-bank-field","name":"TIAA Bank Field","type":"outdoor","dome_frac":0.0},{"id":"tite-field","name":"Tite Field (Acrisure)","type":"outdoor","dome_frac":0.0},{"id":"tottenham-hotspur-stadium","name":"Tottenham Hotspur Stadium","type":"outdoor","dome_frac":0.0},{"id":"us-bank-stadium","name":"U.S. Bank Stadium","type":"dome","dome_frac":1.0}],"validation":{"yoy_raw":null,"yoy_neutral":null},"changelog":[]};
+    <div class="decision">
+      <h3>The environment effect is measured on road games only</h3>
+      <p class="tmg-body-sm">A quarterback's home games are all one environment, so pooling home and away lets home-field advantage ride along inside the environment number. The effect is therefore measured on away games only, where both environments are played away and home field cancels. The anchor, his real career completion percentage and real environment mix, still uses all of his games, so the displayed number is his true career rate.</p>
+      <div class="spot done"><span class="lab">Resolved</span><p>This was the sharp soft spot in the first version, which pooled home and away. Fixing it matched the Sports Info Solutions method and moved real numbers. Drew Brees drops from a +3.8 raw split to a +2.4 clean effect, so most of his dome edge was home field. The cost is a shorter roster, 79 quarterbacks instead of 106, and wider bands, which suit the tool's honest thesis.</p></div>
+    </div>
 
-    // ── Populate coefficient table ────────────────────────────────────────────
-    (function renderCoeffs() {
-      const effects = MODEL.effects || {};
-      const meta    = MODEL.effects_meta || {};
-      const tbody   = document.getElementById('coeffs-tbody');
+    <div class="decision">
+      <h3>The axis is labeled environment, but the driver is weather</h3>
+      <p class="tmg-body-sm">Dome versus outdoor is used as the control because it is the documented, public split.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>Roof bundles temperature, wind, and rain together with the dome. Public analysis shows cold below forty degrees and rain are what move completion percentage, not the roof itself. The effect is not caused by the roof alone, and it is not causal.</p></div>
+    </div>
 
-      const labels = {
-        dome:  'Dome (fully indoor)',
-        clear: 'Clear / Mild (baseline)',
-        wind:  'High Wind (≥15 mph)',
-        rain:  'Rain',
-        cold:  'Cold (<35 °F)',
-        snow:  'Snow',
-      };
+    <div class="decision">
+      <h3>Games-started filter: 8 qualifying road games per environment</h3>
+      <p class="tmg-body-sm">A qualifying game is 10 or more attempts. The minimum is two-sided and applied to road games, so no quarterback makes the roster on a lopsided or home-heavy sample.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>Attempts are a proxy for starts. A blowout finished by a backup could count. Low impact.</p></div>
+    </div>
 
-      Object.entries(labels).forEach(([key, label]) => {
-        const v   = effects[key] ?? null;
-        const m   = meta[key]  ?? {};
-        const tr  = document.createElement('tr');
-        const ci  = m.ci_lo != null && m.ci_hi != null
-                    ? `[${fmtDelta(m.ci_lo)}, ${fmtDelta(m.ci_hi)}]`
-                    : '—';
-        const npl = m.n_plays != null ? m.n_plays.toLocaleString() : '—';
-        tr.innerHTML = `
-          <td>${label}</td>
-          <td class="td-right td-mono">${v != null ? fmtDelta(v) : '—'}</td>
-          <td class="td-right td-mono text-muted">${ci}</td>
-          <td class="td-right td-mono">${npl}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    })();
+    <div class="decision">
+      <h3>Metric and window: completion percentage only, 1999&ndash;2024</h3>
+      <p class="tmg-body-sm">One metric, regular season, twenty-six seasons.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>It ignores yards, sacks, interceptions, and the deep ball, where the dome edge is largest. Era pooling assumes the delta is stable across all those seasons. The delta is more stable than the raw level, but not guaranteed constant.</p></div>
+    </div>
+  </div>
 
-    // ── Populate validation card ──────────────────────────────────────────────
-    (function renderValidation() {
-      const val = MODEL.validation || {};
-      const rawEl     = document.getElementById('val-yoy-raw');
-      const neutralEl = document.getElementById('val-yoy-neutral');
-      if (val.yoy_raw     != null) rawEl.textContent     = val.yoy_raw.toFixed(3);
-      if (val.yoy_neutral != null) neutralEl.textContent = val.yoy_neutral.toFixed(3);
-    })();
+  <div class="tmg-card-wide caught">
+    <h2 class="tmg-card-title">The error that was caught</h2>
+    <p class="tmg-body">The first shrinkage estimator returned a between-quarterback variance of zero. Every quarterback collapsed to the league mean, so every counterfactual came out identical and the pick-a-player mechanic was fake. The cause was a weighted method-of-moments step that let large samples drive the estimated spread to zero. Switching to DerSimonian-Laird, the standard meta-analysis estimator, recovered a real spread of 1.6 points in the original home-and-away model and significant heterogeneity; the current road-only model puts the spread at 1.7. The lesson is the useful part: a flat result that makes the product pointless is a signal to check the estimator, not a reason to ship the flatness.</p>
+  </div>
 
-    // ── Populate changelog ────────────────────────────────────────────────────
-    (function renderChangelog() {
-      const changelog = MODEL.changelog || [];
-      const el = document.getElementById('changelog');
-      if (!changelog.length) {
-        el.innerHTML = '<p class="text-muted text-sm">No changelog entries yet.</p>';
-        return;
-      }
-      changelog.forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'callout callout--info mb-4';
-        div.innerHTML = `
-          <p class="text-sm text-muted mb-1">${entry.date}</p>
-          <p class="text-sm">${entry.description}</p>
-        `;
-        el.appendChild(div);
-      });
-    })();
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">What was not audited</h2>
+    <ul class="tight">
+      <li>No causal identification. This is a descriptive split presented as a counterfactual, and it is framed that way.</li>
+      <li>Weather severity, altitude, turf, and crowd noise are not separated from the roof.</li>
+      <li>The nflverse roof and stadium flags are trusted as given, not re-checked game by game.</li>
+      <li>Playoffs are excluded. Regular season only. Quarterbacks only. Completion percentage only.</li>
+    </ul>
+  </div>
 
-    function fmtDelta(v) {
-      if (v == null) return '—';
-      const sign = v >= 0 ? '+' : '';
-      return sign + (v * 100).toFixed(2) + ' pp';
+  <div class="tmg-card-wide verdict">
+    <h2 class="tmg-card-title">Verdict</h2>
+    <p class="tmg-body">Ready to ship as a stylized projection tool, with the framing kept on its face. The home-field confound is now removed by measuring the effect on road games only. One caveat remains and is worth stating plainly: the driver is weather, not the roof, so dome versus outdoor bundles temperature, wind, and rain together with the enclosure. That is fine for a portfolio tool. It would need separating if this were ever raised to a research claim.</p>
+  </div>
+
+  <footer class="tmg-footer">Data: nflverse play-by-play, 1999&ndash;2024 regular season. The Mallory Group.</footer>
+</div>
+
+<script>
+(function () {
+  const btn  = document.getElementById('tmgDdBtn');
+  const menu = document.getElementById('tmgDdMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const isOpen = menu.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', String(isOpen));
+  });
+  document.addEventListener('click', function () {
+    menu.classList.remove('open'); btn.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      menu.classList.remove('open'); btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false'); btn.focus();
     }
-  </script>
+  });
+})();
+</script>
 </body>
 </html>
