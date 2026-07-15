@@ -139,9 +139,9 @@ body {
 }
 
 .tmg-page-nav a[aria-current="page"] {
-  background: rgba(132,169,140,0.16);
-  border-color: rgba(132,169,140,0.50);
-  color: var(--tmg-sage-hover);
+  background: var(--tmg-charcoal);
+  border-color: var(--tmg-charcoal);
+  color: var(--tmg-white);
 }
 
 .tmg-dropdown-wrap { position: relative; justify-self: end; }
