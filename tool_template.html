@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QB Environment Reprojection — TMG</title>
+  <meta name="description" content="Adjust a quarterback's completion percentage for environment effects: dome vs. outdoor, weather conditions, and stadium altitude." />
+  <style>
+    /* {{TMG_CSS}} */
+  </style>
+</head>
+<body class="page-wrap">
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo">TMG Analytics</a>
+      <nav class="site-nav">
+        <a href="index.html" class="active">Tool</a>
+        <a href="audit.html">Audit</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="container container--narrow">
+
+      <div class="page-hero">
+        <p class="eyebrow">QB Environment Reprojection</p>
+        <h1>Adjust Completion % for Environment</h1>
+        <p class="subtitle">
+          The counterfactual shifts a quarterback's real completion percentage
+          by his environment effect — removing the contribution of dome, weather,
+          and altitude to surface the underlying skill signal.
+        </p>
+      </div>
+
+      <!-- ── Input Panel ── -->
+      <section class="section" id="inputs">
+        <div class="section__header">
+          <h2 class="section__title">QB Inputs</h2>
+          <span class="section__note">Enter observed season statistics</span>
+        </div>
+
+        <div class="card">
+          <div class="grid grid--2">
+            <div class="form-group">
+              <label for="completions">Completions</label>
+              <input type="number" id="completions" min="0" max="700" step="1" value="350" />
+            </div>
+            <div class="form-group">
+              <label for="attempts">Attempts</label>
+              <input type="number" id="attempts" min="1" max="700" step="1" value="550" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="stadium">Home Stadium / Environment</label>
+            <select id="stadium">
+              <option value="">— select stadium —</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="dome_pct">
+              Dome Snap Share
+              <span class="tooltip-icon" title="Fraction of dropbacks in a retractable-roof or fully indoor stadium">?</span>
+            </label>
+            <div class="range-row">
+              <input type="range" id="dome_pct" min="0" max="1" step="0.01" value="0" />
+              <span class="range-value" id="dome_pct_display">0%</span>
+            </div>
+          </div>
+
+          <div class="form-group" id="weather-group">
+            <label for="weather">Outdoor Weather Conditions</label>
+            <select id="weather">
+              <option value="clear">Clear / Mild</option>
+              <option value="wind">High Wind (&gt;15 mph)</option>
+              <option value="rain">Rain</option>
+              <option value="cold">Cold (&lt;35 °F)</option>
+              <option value="snow">Snow</option>
+            </select>
+          </div>
+
+          <div class="mt-4">
+            <button class="btn btn--primary w-full" id="calc-btn">Calculate Reprojection</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Results Panel ── -->
+      <section class="section hidden" id="results">
+        <div class="section__header">
+          <h2 class="section__title">Results</h2>
+        </div>
+
+        <div class="grid grid--3">
+          <div class="result-block">
+            <p class="result-label">Observed Comp%</p>
+            <p class="result-value result-value--secondary" id="out-observed">—</p>
+          </div>
+          <div class="result-block card--highlight">
+            <p class="result-label">Environment-Neutral Comp%</p>
+            <p class="result-value" id="out-neutral">—</p>
+          </div>
+          <div class="result-block">
+            <p class="result-label">Environment Effect</p>
+            <p class="result-value result-value--secondary" id="out-effect">—</p>
+          </div>
+        </div>
+
+        <div class="card mt-5" id="breakdown-card">
+          <h3 class="mb-4">Effect Breakdown</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th class="td-right">Adjustment (pp)</th>
+                  <th class="td-right">Direction</th>
+                </tr>
+              </thead>
+              <tbody id="breakdown-tbody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="callout mt-5">
+          <p class="text-sm text-muted" id="methodology-note">
+            Adjustments derived from a hierarchical Bayesian shrinkage model fit on
+            nflverse play-by-play data (2016–present). Each effect is estimated
+            conditionally on coverage shell, air-yards distribution, and down &amp; distance.
+            See the <a href="audit.html">audit page</a> for full methodology.
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>TMG Analytics · QB Environment Reprojection</p>
+      <p>Data: <a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a></p>
+    </div>
+  </footer>
+
+  <script>
+    // Model data injected by build_site.py
+    const MODEL = {{MODEL_JSON}};
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const domePct      = document.getElementById('dome_pct');
+    const domePctDisp  = document.getElementById('dome_pct_display');
+    const stadiumSel   = document.getElementById('stadium');
+    const weatherGroup = document.getElementById('weather-group');
+    const calcBtn      = document.getElementById('calc-btn');
+    const resultsEl    = document.getElementById('results');
+
+    // ── Populate stadium dropdown ─────────────────────────────────────────────
+    (function populateStadiums() {
+      const stadiums = MODEL.stadiums || [];
+      stadiums.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.name} (${s.type})`;
+        opt.dataset.type = s.type;
+        opt.dataset.domeFrac = s.dome_frac ?? 0;
+        stadiumSel.appendChild(opt);
+      });
+    })();
+
+    // ── Auto-fill dome share from stadium selection ───────────────────────────
+    stadiumSel.addEventListener('change', () => {
+      const opt = stadiumSel.selectedOptions[0];
+      if (!opt || !opt.dataset.domeFrac) return;
+      domePct.value = opt.dataset.domeFrac;
+      syncDomeDisplay();
+      weatherGroup.style.display = +opt.dataset.domeFrac >= 1 ? 'none' : '';
+    });
+
+    domePct.addEventListener('input', () => {
+      syncDomeDisplay();
+      weatherGroup.style.display = +domePct.value >= 1 ? 'none' : '';
+    });
+
+    function syncDomeDisplay() {
+      domePctDisp.textContent = Math.round(domePct.value * 100) + '%';
+    }
+
+    // ── Reprojection logic ────────────────────────────────────────────────────
+    calcBtn.addEventListener('click', calculate);
+
+    function calculate() {
+      const comps    = +document.getElementById('completions').value;
+      const atts     = +document.getElementById('attempts').value;
+      const domeFrac = +domePct.value;
+      const weather  = document.getElementById('weather').value;
+
+      if (atts <= 0) { alert('Attempts must be > 0'); return; }
+
+      const observedCpPct = comps / atts;
+
+      // Look up effects from model
+      const domeEffect    = (MODEL.effects?.dome    ?? 0) * domeFrac;
+      const weatherEffect = domeFrac >= 1 ? 0 : (MODEL.effects?.[weather] ?? 0);
+
+      const totalEffect   = domeEffect + weatherEffect;
+      const neutralCpPct  = observedCpPct - totalEffect;
+
+      // Render
+      document.getElementById('out-observed').textContent = fmt(observedCpPct);
+      document.getElementById('out-neutral').textContent  = fmt(neutralCpPct);
+      document.getElementById('out-effect').textContent   = fmtDelta(totalEffect);
+
+      const tbody = document.getElementById('breakdown-tbody');
+      tbody.innerHTML = '';
+
+      const rows = [
+        { label: 'Dome environment', value: domeEffect },
+        { label: `Weather (${weather})`, value: weatherEffect },
+      ];
+
+      rows.forEach(r => {
+        if (Math.abs(r.value) < 0.0001) return;
+        const tr = document.createElement('tr');
+        const dir = r.value > 0 ? '<span class="text-success">boosted</span>'
+                                 : '<span class="text-danger">suppressed</span>';
+        tr.innerHTML = `
+          <td>${r.label}</td>
+          <td class="td-right td-mono">${fmtDelta(r.value)}</td>
+          <td class="td-right">${dir}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!tbody.children.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No significant environmental factors detected.</td></tr>';
+      }
+
+      resultsEl.classList.remove('hidden');
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function fmt(v)      { return (v * 100).toFixed(1) + '%'; }
+    function fmtDelta(v) {
+      const sign = v > 0 ? '+' : '';
+      return sign + (v * 100).toFixed(2) + ' pp';
+    }
+  </script>
+</body>
+</html>

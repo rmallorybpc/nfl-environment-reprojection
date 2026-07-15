@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QB Environment Reprojection — TMG</title>
+  <meta name="description" content="Adjust a quarterback's completion percentage for environment effects: dome vs. outdoor, weather conditions, and stadium altitude." />
+  <style>
+    /* TMG Design System — tmg.css */
+
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Colour tokens */
+  --tmg-navy:       #0a1628;
+  --tmg-navy-mid:   #12233f;
+  --tmg-navy-light: #1c3459;
+  --tmg-gold:       #c8a84b;
+  --tmg-gold-light: #e2c97e;
+  --tmg-white:      #f5f7fa;
+  --tmg-muted:      #8a9ab5;
+  --tmg-border:     #2a3f5f;
+  --tmg-success:    #4caf7d;
+  --tmg-danger:     #e05c5c;
+  --tmg-neutral:    #6b7fa3;
+
+  /* Typography */
+  --font-sans:  "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono:  "JetBrains Mono", "Fira Code", "Consolas", monospace;
+
+  /* Spacing scale */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.5rem;
+  --space-6:  2rem;
+  --space-8:  3rem;
+  --space-10: 4rem;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.6);
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--tmg-navy);
+  color: var(--tmg-white);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--tmg-white);
+}
+
+h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+h2 { font-size: clamp(1.35rem, 3vw, 1.85rem); }
+h3 { font-size: clamp(1.1rem, 2.5vw, 1.35rem); }
+h4 { font-size: 1.1rem; }
+
+p { margin-bottom: var(--space-4); color: var(--tmg-white); }
+p:last-child { margin-bottom: 0; }
+
+a { color: var(--tmg-gold); text-decoration: none; }
+a:hover { color: var(--tmg-gold-light); text-decoration: underline; }
+
+code, pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+code {
+  background: var(--tmg-navy-light);
+  color: var(--tmg-gold-light);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+}
+
+pre {
+  background: var(--tmg-navy-mid);
+  border: 1px solid var(--tmg-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow-x: auto;
+  margin-bottom: var(--space-4);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: var(--tmg-white);
+}
+
+small, .text-sm { font-size: 0.875rem; }
+.text-xs        { font-size: 0.75rem; }
+.text-muted     { color: var(--tmg-muted); }
+.text-gold      { color: var(--tmg-gold); }
+.text-success   { color: var(--tmg-success); }
+.text-danger    { color: var(--tmg-danger); }
+.text-center    { text-align: center; }
+.text-right     { text-align: right; }
+
+/* ─── Layout ────────────────────────────────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.container--narrow { max-width: 760px; }
+.container--wide   { max-width: 1400px; }
+
+.page-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  padding: var(--space-8) 0;
+}
+
+/* Grid */
+.grid         { display: grid; gap: var(--space-5); }
+.grid--2      { grid-template-columns: repeat(2, 1fr); }
+.grid--3      { grid-template-columns: repeat(3, 1fr); }
+.grid--4      { grid-template-columns: repeat(4, 1fr); }
+.grid--auto   { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+@media (max-width: 768px) {
+  .grid--2,
+  .grid--3,
+  .grid--4 { grid-template-columns: 1fr; }
+}
+
+/* Flex helpers */
+.flex         { display: flex; }
+.flex-wrap    { flex-wrap: wrap; }
+.flex-col     { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start  { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-center  { justify-content: center; }
+.gap-2        { gap: var(--space-2); }
+.gap-3        { gap: var(--space-3); }
+.gap-4        { gap: var(--space-4); }
+.gap-5        { gap: var(--space-5); }
+
+/* ─── Header / Nav ──────────────────────────────────────────────────────────── */
+.site-header {
+  background: var(--tmg-navy-mid);
+  border-bottom: 2px solid var(--tmg-gold);
+  padding: var(--space-4) 0;
+}
+
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.site-logo {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--tmg-gold);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.site-logo:hover { color: var(--tmg-gold-light); text-decoration: none; }
+
+.site-nav { display: flex; gap: var(--space-4); align-items: center; }
+
+.site-nav a {
+  color: var(--tmg-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.site-nav a:hover,
+.site-nav a.active { color: var(--tmg-white); text-decoration: none; }
+
+/* ─── Hero / Page Title ─────────────────────────────────────────────────────── */
+.page-hero {
+  padding: var(--space-8) 0 var(--space-6);
+  border-bottom: 1px solid var(--tmg-border);
+  margin-bottom: var(--space-6);
+}
+
+.page-hero .eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tmg-gold);
+  margin-bottom: var(--space-2);
+}
+
+.page-hero h1 { margin-bottom: var(--space-3); }
+
+.page-hero .subtitle {
+  font-size: 1.1rem;
+  color: var(--tmg-muted);
+  max-width: 640px;
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--tmg-navy-mid);
+  border: 1px solid var(--tmg-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.card--highlight {
+  border-color: var(--tmg-gold);
+}
+
+.card__title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tmg-muted);
+  margin-bottom: var(--space-2);
+}
+
+.card__value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--tmg-white);
+  line-height: 1;
+}
+
+.card__delta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: var(--space-1);
+}
+
+.card__delta--pos { color: var(--tmg-success); }
+.card__delta--neg { color: var(--tmg-danger); }
+.card__delta--neu { color: var(--tmg-muted); }
+
+/* ─── Form Controls ─────────────────────────────────────────────────────────── */
+.form-group {
+  margin-bottom: var(--space-4);
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tmg-muted);
+  margin-bottom: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  background: var(--tmg-navy-light);
+  border: 1px solid var(--tmg-border);
+  border-radius: var(--radius-md);
+  color: var(--tmg-white);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  padding: var(--space-3) var(--space-4);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--tmg-gold);
+  box-shadow: 0 0 0 3px rgba(200, 168, 75, 0.2);
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a9ab5' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-4) center;
+  padding-right: var(--space-8);
+}
+
+/* Range Slider */
+input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--tmg-navy-light);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  accent-color: var(--tmg-gold);
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.range-value {
+  min-width: 3.5rem;
+  text-align: right;
+  font-weight: 700;
+  color: var(--tmg-gold);
+  font-size: 1.05rem;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  letter-spacing: 0.03em;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn--primary {
+  background: var(--tmg-gold);
+  color: var(--tmg-navy);
+}
+
+.btn--primary:hover {
+  background: var(--tmg-gold-light);
+  color: var(--tmg-navy);
+  text-decoration: none;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--tmg-gold);
+  border: 1px solid var(--tmg-gold);
+}
+
+.btn--ghost:hover {
+  background: rgba(200, 168, 75, 0.1);
+  text-decoration: none;
+}
+
+.btn--sm {
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.8rem;
+}
+
+/* ─── Section Dividers ──────────────────────────────────────────────────────── */
+.section {
+  margin-bottom: var(--space-8);
+}
+
+.section__header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--tmg-border);
+}
+
+.section__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--tmg-white);
+}
+
+.section__note {
+  font-size: 0.8rem;
+  color: var(--tmg-muted);
+}
+
+/* ─── Result Display ─────────────────────────────────────────────────────────── */
+.result-block {
+  background: var(--tmg-navy-light);
+  border: 1px solid var(--tmg-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.result-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tmg-muted);
+  margin-bottom: var(--space-2);
+}
+
+.result-value {
+  font-size: 3rem;
+  font-weight: 900;
+  color: var(--tmg-gold);
+  line-height: 1;
+}
+
+.result-value--secondary {
+  font-size: 2rem;
+  color: var(--tmg-white);
+}
+
+.result-delta {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: var(--space-2);
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+thead th {
+  background: var(--tmg-navy-light);
+  color: var(--tmg-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--tmg-border);
+}
+
+tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid rgba(42, 63, 95, 0.5);
+  color: var(--tmg-white);
+}
+
+tbody tr:hover td { background: rgba(255,255,255,0.03); }
+
+tbody tr:last-child td { border-bottom: none; }
+
+.td-right { text-align: right; }
+.td-mono  { font-family: var(--font-mono); }
+
+/* ─── Tooltip / Info ─────────────────────────────────────────────────────────── */
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  background: var(--tmg-navy-light);
+  border: 1px solid var(--tmg-border);
+  font-size: 0.65em;
+  color: var(--tmg-muted);
+  cursor: help;
+  vertical-align: middle;
+  margin-left: var(--space-1);
+}
+
+/* ─── Callout / Explainer ────────────────────────────────────────────────────── */
+.callout {
+  background: var(--tmg-navy-mid);
+  border-left: 3px solid var(--tmg-gold);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.callout--info  { border-color: var(--tmg-neutral); }
+.callout--warn  { border-color: #e0a05c; }
+.callout--good  { border-color: var(--tmg-success); }
+
+.callout p:last-child { margin-bottom: 0; }
+
+/* ─── Footer ─────────────────────────────────────────────────────────────────── */
+.site-footer {
+  background: var(--tmg-navy-mid);
+  border-top: 1px solid var(--tmg-border);
+  padding: var(--space-6) 0;
+  margin-top: auto;
+}
+
+.site-footer .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.site-footer p {
+  font-size: 0.8rem;
+  color: var(--tmg-muted);
+  margin: 0;
+}
+
+/* ─── Utility ────────────────────────────────────────────────────────────────── */
+.hidden  { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.mt-1 { margin-top: var(--space-1); }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-5 { margin-top: var(--space-5); }
+.mt-6 { margin-top: var(--space-6); }
+.mb-1 { margin-bottom: var(--space-1); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-5 { margin-bottom: var(--space-5); }
+.mb-6 { margin-bottom: var(--space-6); }
+.w-full { width: 100%; }
+
+  </style>
+</head>
+<body class="page-wrap">
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo">TMG Analytics</a>
+      <nav class="site-nav">
+        <a href="index.html" class="active">Tool</a>
+        <a href="audit.html">Audit</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="container container--narrow">
+
+      <div class="page-hero">
+        <p class="eyebrow">QB Environment Reprojection</p>
+        <h1>Adjust Completion % for Environment</h1>
+        <p class="subtitle">
+          The counterfactual shifts a quarterback's real completion percentage
+          by his environment effect — removing the contribution of dome, weather,
+          and altitude to surface the underlying skill signal.
+        </p>
+      </div>
+
+      <!-- ── Input Panel ── -->
+      <section class="section" id="inputs">
+        <div class="section__header">
+          <h2 class="section__title">QB Inputs</h2>
+          <span class="section__note">Enter observed season statistics</span>
+        </div>
+
+        <div class="card">
+          <div class="grid grid--2">
+            <div class="form-group">
+              <label for="completions">Completions</label>
+              <input type="number" id="completions" min="0" max="700" step="1" value="350" />
+            </div>
+            <div class="form-group">
+              <label for="attempts">Attempts</label>
+              <input type="number" id="attempts" min="1" max="700" step="1" value="550" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="stadium">Home Stadium / Environment</label>
+            <select id="stadium">
+              <option value="">— select stadium —</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="dome_pct">
+              Dome Snap Share
+              <span class="tooltip-icon" title="Fraction of dropbacks in a retractable-roof or fully indoor stadium">?</span>
+            </label>
+            <div class="range-row">
+              <input type="range" id="dome_pct" min="0" max="1" step="0.01" value="0" />
+              <span class="range-value" id="dome_pct_display">0%</span>
+            </div>
+          </div>
+
+          <div class="form-group" id="weather-group">
+            <label for="weather">Outdoor Weather Conditions</label>
+            <select id="weather">
+              <option value="clear">Clear / Mild</option>
+              <option value="wind">High Wind (&gt;15 mph)</option>
+              <option value="rain">Rain</option>
+              <option value="cold">Cold (&lt;35 °F)</option>
+              <option value="snow">Snow</option>
+            </select>
+          </div>
+
+          <div class="mt-4">
+            <button class="btn btn--primary w-full" id="calc-btn">Calculate Reprojection</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Results Panel ── -->
+      <section class="section hidden" id="results">
+        <div class="section__header">
+          <h2 class="section__title">Results</h2>
+        </div>
+
+        <div class="grid grid--3">
+          <div class="result-block">
+            <p class="result-label">Observed Comp%</p>
+            <p class="result-value result-value--secondary" id="out-observed">—</p>
+          </div>
+          <div class="result-block card--highlight">
+            <p class="result-label">Environment-Neutral Comp%</p>
+            <p class="result-value" id="out-neutral">—</p>
+          </div>
+          <div class="result-block">
+            <p class="result-label">Environment Effect</p>
+            <p class="result-value result-value--secondary" id="out-effect">—</p>
+          </div>
+        </div>
+
+        <div class="card mt-5" id="breakdown-card">
+          <h3 class="mb-4">Effect Breakdown</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th class="td-right">Adjustment (pp)</th>
+                  <th class="td-right">Direction</th>
+                </tr>
+              </thead>
+              <tbody id="breakdown-tbody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="callout mt-5">
+          <p class="text-sm text-muted" id="methodology-note">
+            Adjustments derived from a hierarchical Bayesian shrinkage model fit on
+            nflverse play-by-play data (2016–present). Each effect is estimated
+            conditionally on coverage shell, air-yards distribution, and down &amp; distance.
+            See the <a href="audit.html">audit page</a> for full methodology.
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>TMG Analytics · QB Environment Reprojection</p>
+      <p>Data: <a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a></p>
+    </div>
+  </footer>
+
+  <script>
+    // Model data injected by build_site.py
+    const MODEL = {"built_at":"2026-07-15","seasons":[],"effects":{"dome":0.012,"clear":0.0,"wind":-0.015,"rain":-0.01,"cold":-0.008,"snow":-0.022},"effects_meta":{"dome":{"raw_effect":0.012,"n_plays":0,"ci_lo":0.0,"ci_hi":0.024},"clear":{"raw_effect":0.0,"n_plays":0,"ci_lo":0.0,"ci_hi":0.0},"wind":{"raw_effect":-0.015,"n_plays":0,"ci_lo":-0.025,"ci_hi":-0.005},"rain":{"raw_effect":-0.01,"n_plays":0,"ci_lo":-0.018,"ci_hi":-0.002},"cold":{"raw_effect":-0.008,"n_plays":0,"ci_lo":-0.016,"ci_hi":0.0},"snow":{"raw_effect":-0.022,"n_plays":0,"ci_lo":-0.038,"ci_hi":-0.006}},"stadiums":[{"id":"allegiant-stadium","name":"Allegiant Stadium","type":"dome","dome_frac":1.0},{"id":"arrowhead-stadium","name":"Arrowhead Stadium","type":"outdoor","dome_frac":0.0},{"id":"att-stadium","name":"ATT Stadium","type":"retractable","dome_frac":0.7},{"id":"bank-of-america-stadium","name":"Bank of America Stadium","type":"outdoor","dome_frac":0.0},{"id":"caesars-superdome","name":"Caesars Superdome","type":"dome","dome_frac":1.0},{"id":"empower-field","name":"Empower Field","type":"outdoor","dome_frac":0.0},{"id":"era-stadium","name":"Highmark Stadium","type":"outdoor","dome_frac":0.0},{"id":"everbank-stadium","name":"EverBank Stadium","type":"outdoor","dome_frac":0.0},{"id":"fedex-field","name":"FedEx Field","type":"outdoor","dome_frac":0.0},{"id":"ford-field","name":"Ford Field","type":"dome","dome_frac":1.0},{"id":"gillette-stadium","name":"Gillette Stadium","type":"outdoor","dome_frac":0.0},{"id":"lambeau-field","name":"Lambeau Field","type":"outdoor","dome_frac":0.0},{"id":"levis-stadium","name":"Levi's Stadium","type":"outdoor","dome_frac":0.0},{"id":"lincoln-financial-field","name":"Lincoln Financial Field","type":"outdoor","dome_frac":0.0},{"id":"lucas-oil-stadium","name":"Lucas Oil Stadium","type":"dome","dome_frac":1.0},{"id":"mercedes-benz-stadium","name":"Mercedes-Benz Stadium","type":"retractable","dome_frac":1.0},{"id":"metlife-stadium","name":"MetLife Stadium","type":"outdoor","dome_frac":0.0},{"id":"nrg-stadium","name":"NRG Stadium","type":"retractable","dome_frac":0.65},{"id":"paycor-stadium","name":"Paycor Stadium","type":"outdoor","dome_frac":0.0},{"id":"sofi-stadium","name":"SoFi Stadium","type":"retractable","dome_frac":0.8},{"id":"soldier-field","name":"Soldier Field","type":"outdoor","dome_frac":0.0},{"id":"state-farm-stadium","name":"State Farm Stadium","type":"retractable","dome_frac":0.7},{"id":"tiaa-bank-field","name":"TIAA Bank Field","type":"outdoor","dome_frac":0.0},{"id":"tite-field","name":"Tite Field (Acrisure)","type":"outdoor","dome_frac":0.0},{"id":"tottenham-hotspur-stadium","name":"Tottenham Hotspur Stadium","type":"outdoor","dome_frac":0.0},{"id":"us-bank-stadium","name":"U.S. Bank Stadium","type":"dome","dome_frac":1.0}],"validation":{"yoy_raw":null,"yoy_neutral":null},"changelog":[]};
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const domePct      = document.getElementById('dome_pct');
+    const domePctDisp  = document.getElementById('dome_pct_display');
+    const stadiumSel   = document.getElementById('stadium');
+    const weatherGroup = document.getElementById('weather-group');
+    const calcBtn      = document.getElementById('calc-btn');
+    const resultsEl    = document.getElementById('results');
+
+    // ── Populate stadium dropdown ─────────────────────────────────────────────
+    (function populateStadiums() {
+      const stadiums = MODEL.stadiums || [];
+      stadiums.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.name} (${s.type})`;
+        opt.dataset.type = s.type;
+        opt.dataset.domeFrac = s.dome_frac ?? 0;
+        stadiumSel.appendChild(opt);
+      });
+    })();
+
+    // ── Auto-fill dome share from stadium selection ───────────────────────────
+    stadiumSel.addEventListener('change', () => {
+      const opt = stadiumSel.selectedOptions[0];
+      if (!opt || !opt.dataset.domeFrac) return;
+      domePct.value = opt.dataset.domeFrac;
+      syncDomeDisplay();
+      weatherGroup.style.display = +opt.dataset.domeFrac >= 1 ? 'none' : '';
+    });
+
+    domePct.addEventListener('input', () => {
+      syncDomeDisplay();
+      weatherGroup.style.display = +domePct.value >= 1 ? 'none' : '';
+    });
+
+    function syncDomeDisplay() {
+      domePctDisp.textContent = Math.round(domePct.value * 100) + '%';
+    }
+
+    // ── Reprojection logic ────────────────────────────────────────────────────
+    calcBtn.addEventListener('click', calculate);
+
+    function calculate() {
+      const comps    = +document.getElementById('completions').value;
+      const atts     = +document.getElementById('attempts').value;
+      const domeFrac = +domePct.value;
+      const weather  = document.getElementById('weather').value;
+
+      if (atts <= 0) { alert('Attempts must be > 0'); return; }
+
+      const observedCpPct = comps / atts;
+
+      // Look up effects from model
+      const domeEffect    = (MODEL.effects?.dome    ?? 0) * domeFrac;
+      const weatherEffect = domeFrac >= 1 ? 0 : (MODEL.effects?.[weather] ?? 0);
+
+      const totalEffect   = domeEffect + weatherEffect;
+      const neutralCpPct  = observedCpPct - totalEffect;
+
+      // Render
+      document.getElementById('out-observed').textContent = fmt(observedCpPct);
+      document.getElementById('out-neutral').textContent  = fmt(neutralCpPct);
+      document.getElementById('out-effect').textContent   = fmtDelta(totalEffect);
+
+      const tbody = document.getElementById('breakdown-tbody');
+      tbody.innerHTML = '';
+
+      const rows = [
+        { label: 'Dome environment', value: domeEffect },
+        { label: `Weather (${weather})`, value: weatherEffect },
+      ];
+
+      rows.forEach(r => {
+        if (Math.abs(r.value) < 0.0001) return;
+        const tr = document.createElement('tr');
+        const dir = r.value > 0 ? '<span class="text-success">boosted</span>'
+                                 : '<span class="text-danger">suppressed</span>';
+        tr.innerHTML = `
+          <td>${r.label}</td>
+          <td class="td-right td-mono">${fmtDelta(r.value)}</td>
+          <td class="td-right">${dir}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!tbody.children.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No significant environmental factors detected.</td></tr>';
+      }
+
+      resultsEl.classList.remove('hidden');
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function fmt(v)      { return (v * 100).toFixed(1) + '%'; }
+    function fmtDelta(v) {
+      const sign = v > 0 ? '+' : '';
+      return sign + (v * 100).toFixed(2) + ' pp';
+    }
+  </script>
+</body>
+</html>
