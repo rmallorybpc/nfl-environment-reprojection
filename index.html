@@ -106,11 +106,14 @@ body {
 .tmg-nav {
   position: sticky; top: 0; z-index: 100;
   background: var(--tmg-white); border-bottom: var(--tmg-border);
-  padding: 0 24px; height: 56px;
-  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; min-height: 56px;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; column-gap: 24px;
+  overflow-x: auto;
 }
 
 .tmg-logo {
+  justify-self: start;
   display: flex; align-items: center;
   font-size: 17px; font-weight: 500; letter-spacing: 0.02em;
   color: var(--tmg-charcoal); text-decoration: none;
@@ -121,13 +124,48 @@ body {
   background: var(--tmg-sage); border-radius: 2px; margin: 0 1px;
 }
 
-.tmg-dropdown-wrap { position: relative; }
+.tmg-page-nav {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tmg-page-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: var(--tmg-btn-radius);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tmg-charcoal);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.tmg-page-nav a:hover {
+  background: rgba(132,169,140,0.10);
+  border-color: rgba(132,169,140,0.40);
+  color: var(--tmg-sage-hover);
+}
+
+.tmg-page-nav a[aria-current="page"] {
+  background: rgba(132,169,140,0.16);
+  border-color: rgba(132,169,140,0.50);
+  color: var(--tmg-sage-hover);
+}
+
+.tmg-dropdown-wrap { position: relative; justify-self: end; }
 
 .tmg-dropdown-btn {
   background: transparent; border: 1px solid rgba(45,52,54,0.20);
   border-radius: var(--tmg-btn-radius); padding: 7px 14px;
   font-size: 13px; font-weight: 500; color: var(--tmg-charcoal);
   cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap;
   font-family: inherit; transition: background 0.15s;
 }
 .tmg-dropdown-btn:hover,
@@ -152,6 +190,22 @@ body {
 }
 .tmg-dropdown-menu a:hover          { background: rgba(132,169,140,0.12); color: var(--tmg-sage-hover); }
 .tmg-dropdown-menu a:focus-visible  { outline: 2px solid var(--tmg-sage); outline-offset: -2px; border-radius: 6px; }
+
+@media (max-width: 900px) {
+  .tmg-nav {
+    grid-template-columns: auto 1fr auto;
+    column-gap: 12px;
+    padding: 0 16px;
+  }
+
+  .tmg-page-nav { gap: 8px; }
+
+  .tmg-page-nav a,
+  .tmg-dropdown-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
 
 
 /* ── 5. Layout ─────────────────────────────────────────────── */
@@ -328,6 +382,10 @@ body {
     <span>TM</span>
     <div class="tmg-logo-divider" aria-hidden="true"></div>
     <span>G</span>
+  </div>
+  <div class="tmg-page-nav" aria-label="Page navigation">
+    <a href="index.html" aria-current="page">Tool</a>
+    <a href="audit.html">Audit</a>
   </div>
   <div class="tmg-dropdown-wrap">
     <button class="tmg-dropdown-btn" id="tmgDdBtn"
