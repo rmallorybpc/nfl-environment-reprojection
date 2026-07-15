@@ -1,352 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Audit — QB Environment Reprojection — TMG</title>
-  <meta name="description" content="Methodology audit for the TMG QB environment reprojection model: data sources, modelling decisions, and validation." />
-  <style>
-    /* {{TMG_CSS}} */
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit — NFL environment reprojection — The Mallory Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- TMG design system v2.0 (tmg.css inlined). Swap for the CDN link if preferred:
+     <link rel="stylesheet" href="https://rmallorybpc.github.io/tmg-brand-guide/dist/tmg.css"> -->
+<style id="tmg-system">
+__TMG_CSS__
+</style>
+
+<style>
+  .backlink { display: inline-block; margin-top: 10px; font-size: 13px; }
+  .stack > * + * { margin-top: var(--tmg-gap); }
+
+  .status { font-weight: 500; white-space: nowrap; }
+  .status.verified { color: var(--tmg-success); }
+  .status.soft     { color: var(--tmg-warning); }
+  .status.wrong    { color: var(--tmg-error); }
+
+  .decision + .decision { margin-top: 14px; padding-top: 14px; border-top: var(--tmg-border); }
+  .decision h3 { font-size: 16px; font-weight: 500; color: var(--tmg-charcoal); margin: 0 0 6px; }
+  .decision p  { margin: 0 0 6px; }
+
+  .spot { border-left: 3px solid var(--tmg-warning); padding: 2px 0 2px 12px; margin-top: 8px; }
+  .spot .lab { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tmg-warning); margin-bottom: 2px; }
+  .spot p { margin: 0; font-size: 13px; color: rgba(45,52,54,0.75); }
+  .spot.done { border-left-color: var(--tmg-success); }
+  .spot.done .lab { color: var(--tmg-success); }
+
+  .caught { border: 1px solid rgba(196,127,0,0.45); background: rgba(196,127,0,0.05); }
+
+  .verdict { border: 1px solid rgba(132,169,140,0.5); background: rgba(132,169,140,0.06); }
+  .verdict .tmg-card-title { color: var(--tmg-sage-hover); }
+
+  ul.tight { margin: 6px 0 0; padding-left: 18px; }
+  ul.tight li { margin-bottom: 6px; font-size: 14px; }
+  .src { font-size: 12px; color: rgba(45,52,54,0.55); }
+  .method-table-wrap { overflow-x: auto; }
+</style>
 </head>
-<body class="page-wrap">
+<body>
 
-  <header class="site-header">
-    <div class="container">
-      <a href="index.html" class="site-logo">TMG Analytics</a>
-      <nav class="site-nav">
-        <a href="index.html">Tool</a>
-        <a href="audit.html" class="active">Audit</a>
-      </nav>
+<nav class="tmg-nav" role="banner">
+  <div class="tmg-logo" aria-label="The Mallory Group">
+    <span>TM</span>
+    <div class="tmg-logo-divider" aria-hidden="true"></div>
+    <span>G</span>
+  </div>
+  <div class="tmg-dropdown-wrap">
+    <button class="tmg-dropdown-btn" id="tmgDdBtn"
+            aria-haspopup="true" aria-expanded="false" aria-controls="tmgDdMenu">
+      TMG Tool Suite
+      <svg class="tmg-chevron" viewBox="0 0 12 12" fill="none" width="12" height="12" aria-hidden="true">
+        <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="tmg-dropdown-menu" id="tmgDdMenu" role="menu">
+      <a href="https://rmallorybpc.github.io/nhl-free-agency-research/welcome.html" target="_blank" rel="noreferrer" role="menuitem">NHL Free Agency Research</a>
+      <a href="https://rmallorybpc.github.io/nflanalysis/dashboard/src/findings.html?season=2022&team_id=PHI" target="_blank" rel="noreferrer" role="menuitem">NFL Analysis</a>
+      <a href="https://rmallorybpc.github.io/nba-research-project/" target="_blank" rel="noreferrer" role="menuitem">NBA Supermax Research</a>
+      <a href="https://rmallorybpc.github.io/nhl-play-for-contract/" target="_blank" rel="noreferrer" role="menuitem">NHL Play for Contract</a>
+      <a href="https://rmallorybpc.github.io/talent-portability-research/" target="_blank" rel="noreferrer" role="menuitem">Talent Portability Research</a>
+      <a href="https://rmallorybpc.github.io/external-hire-premium/" target="_blank" rel="noreferrer" role="menuitem">External Hire Premium</a>
+      <a href="https://rmallorybpc.github.io/nfl-coach-continuity/" target="_blank" rel="noreferrer" role="menuitem">NFL Coach Continuity</a>
+      <a href="https://rmallorybpc.github.io/recipes/" target="_blank" rel="noreferrer" role="menuitem">Recipe Book</a>
+      <a href="https://rmallorybpc.github.io/pdf-multi-agent-analysis/" target="_blank" rel="noreferrer" role="menuitem">PDF Multi-Agent Analysis</a>
+      <a href="https://content-integrity-audit.pages.dev/" target="_blank" rel="noreferrer" role="menuitem">Content Integrity</a>
+      <a href="https://rmallorybpc.github.io/housing-market-intel/" target="_blank" rel="noreferrer" role="menuitem">Housing Market Intel</a>
+      <a href="https://rmallorybpc.github.io/real-estate-report/" target="_blank" rel="noreferrer" role="menuitem">Real Estate Report</a>
     </div>
-  </header>
+  </div>
+</nav>
 
-  <main class="main-content">
-    <div class="container container--narrow">
+<div class="tmg-page tmg-container stack">
 
-      <div class="page-hero">
-        <p class="eyebrow">Methodology Audit</p>
-        <h1>QB Environment Reprojection</h1>
-        <p class="subtitle">
-          Full transparency on every modelling decision, data source, assumption,
-          and known limitation in the environment reprojection system.
-        </p>
-      </div>
+  <div class="tmg-page-header">
+    <p class="tmg-eyebrow">NFL environment reprojection</p>
+    <h1 class="tmg-page-title">Audit of the build decisions</h1>
+    <p class="tmg-page-desc">Every consequential choice, the reason for it, the option it beat, and where it is weak. Written in a hostile posture: assume the soft spot until shown otherwise.</p>
+    <a class="backlink" href="index.html">&#8592; Back to the tool</a>
+  </div>
 
-      <!-- ── 1. Overview ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">1 · Overview</h2>
-        </div>
-        <p>
-          A quarterback's raw completion percentage conflates skill with context.
-          Playing in a climate-controlled dome, on a sunny autumn afternoon, or
-          in a driving snowstorm all shift the completion-probability surface
-          independently of the QB's talent. This tool removes those environmental
-          contributions so analysts can compare QBs on a common baseline.
-        </p>
-        <p>
-          The reprojection formula is:
-        </p>
-        <pre><code>Comp%_neutral = Comp%_observed − Σ (effect_i × exposure_i)</code></pre>
-        <p>
-          where each <em>effect_i</em> is a learned regression coefficient
-          (shrunk toward the league mean) and <em>exposure_i</em> is the
-          fraction of a QB's dropbacks under condition <em>i</em>.
-        </p>
-      </section>
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">Summary</h2>
+    <p class="tmg-body">This audits the build, not the code style. The tool is a stylized projection, not a causal or predictive model, and it says so on its face. Its foundation holds: a dome lifts completion percentage by about two and a half to three points, re-derived from the play-by-play and corroborated by independent public sources. The single real error during the build was a shrinkage step that flattened every quarterback to the league mean. It was caught and fixed. The home-field confound flagged in the first version is now removed: the environment effect is measured on road games only, so home-field advantage no longer rides along inside it. The correction is not cosmetic. Drew Brees, long seen as a dome quarterback, drops from a +3.8 raw split to a +2.4 clean effect once his home dome games are set aside. Most of his dome edge was home-field advantage. One honest weakness remains: the environment axis is really weather, not the roof.</p>
+  </div>
 
-      <!-- ── 2. Data Sources ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">2 · Data Sources</h2>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Contents</th>
-                <th>Seasons</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a> pbp</td>
-                <td>Play-by-play with completion, air yards, weather fields</td>
-                <td>2016 – present</td>
-              </tr>
-              <tr>
-                <td>nflverse stadiums</td>
-                <td>Stadium type (dome / retractable / outdoor), surface</td>
-                <td>All</td>
-              </tr>
-              <tr>
-                <td>nflverse weather</td>
-                <td>Temperature, wind speed, precipitation flag</td>
-                <td>2016 – present</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="callout callout--info mt-4">
-          <p class="text-sm">
-            <strong>Refresh cadence:</strong> The model is rebuilt on every push
-            to <code>main</code> via GitHub Actions, so coefficients always
-            reflect the latest published nflverse data.
-          </p>
-        </div>
-      </section>
-
-      <!-- ── 3. Feature Engineering ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">3 · Feature Engineering</h2>
-        </div>
-
-        <h3 class="mb-3">3.1 · Dome Indicator</h3>
-        <p>
-          Each stadium is classified as <em>dome</em> (always closed),
-          <em>retractable</em> (partially indoor), or <em>outdoor</em>.
-          Retractable-roof stadiums are assigned a historical open/closed
-          fraction derived from the nflverse stadium metadata.
-          A per-play dome flag is computed and aggregated to a per-QB
-          seasonal dome snap share.
-        </p>
-
-        <h3 class="mb-3 mt-5">3.2 · Weather Buckets</h3>
-        <p>
-          Outdoor plays are bucketed into five weather conditions:
-        </p>
-        <ul style="padding-left:1.5rem; margin-bottom:var(--space-4);">
-          <li><strong>Clear / Mild</strong> — baseline (wind &lt;15 mph, temp ≥35 °F, no precipitation)</li>
-          <li><strong>High Wind</strong> — wind speed ≥15 mph</li>
-          <li><strong>Rain</strong> — precipitation flag set, temp ≥35 °F</li>
-          <li><strong>Cold</strong> — temp &lt;35 °F, no precipitation</li>
-          <li><strong>Snow</strong> — precipitation flag set, temp &lt;35 °F</li>
-        </ul>
-        <p>
-          Dome plays are always assigned <em>Clear / Mild</em> regardless of
-          reported weather, preventing dome roof status from double-counting.
-        </p>
-
-        <h3 class="mb-3 mt-5">3.3 · Covariates in Regression</h3>
-        <p>
-          To isolate environment from talent and usage, the regression
-          conditions on:
-        </p>
-        <ul style="padding-left:1.5rem; margin-bottom:var(--space-4);">
-          <li>Intended air yards (binned into 5 buckets)</li>
-          <li>Down &amp; distance bucket (short/medium/long)</li>
-          <li>Coverage shell (man / zone / unknown)</li>
-          <li>Season (fixed effects)</li>
-        </ul>
-      </section>
-
-      <!-- ── 4. Shrinkage Model ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">4 · Shrinkage Model</h2>
-        </div>
-        <p>
-          Raw environment coefficients are estimated via an OLS regression on
-          individual pass attempts (binary outcome: complete / incomplete).
-          Coefficient estimates are then shrunk toward the cross-sample mean
-          using an empirical Bayes approach:
-        </p>
-        <pre><code>θ̂_shrunk = (n_i / (n_i + κ)) × θ̂_raw + (κ / (n_i + κ)) × μ̄</code></pre>
-        <p>
-          where <em>n_i</em> is the sample size for condition <em>i</em>,
-          <em>κ</em> is the prior pseudo-count (tuned by cross-validation),
-          and <em>μ̄</em> is the grand-mean effect across conditions.
-          This prevents the model from over-fitting to small-sample weather
-          combinations (e.g., the handful of snow games each season).
-        </p>
-
-        <div class="callout mt-4">
-          <p class="text-sm">
-            <strong>Key assumption:</strong> Environment effects are additive and
-            separable from QB skill. The model does not attempt to capture
-            QB × Environment interactions (e.g., a QB who is uniquely bad in wind).
-            Such interactions are typically within the noise at current sample sizes.
-          </p>
-        </div>
-      </section>
-
-      <!-- ── 5. Learned Coefficients ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">5 · Learned Coefficients</h2>
-          <span class="section__note">From latest model build</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Condition</th>
-                <th class="td-right">Effect (pp)</th>
-                <th class="td-right">95% CI</th>
-                <th class="td-right">n plays</th>
-              </tr>
-            </thead>
-            <tbody id="coeffs-tbody">
-              <!-- populated by inline script below -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ── 6. Validation ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">6 · Validation</h2>
-        </div>
-        <p>
-          Model quality is assessed via:
-        </p>
-        <ol style="padding-left:1.5rem; margin-bottom:var(--space-4);">
-          <li><strong>Leave-one-season-out CV</strong> — train on seasons T–1 and back, evaluate on season T.</li>
-          <li><strong>Year-over-year stability</strong> — Pearson correlation of environment-neutral Comp% across adjacent seasons vs. raw Comp%.</li>
-          <li><strong>Placebo test</strong> — null model (no environment adjustment) used as baseline.</li>
-        </ol>
-        <div class="card" id="validation-card">
-          <div class="grid grid--2">
-            <div>
-              <p class="card__title">YoY Correlation (raw Comp%)</p>
-              <p class="card__value" id="val-yoy-raw">—</p>
-            </div>
-            <div>
-              <p class="card__title">YoY Correlation (neutral Comp%)</p>
-              <p class="card__value" id="val-yoy-neutral">—</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── 7. Known Limitations ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">7 · Known Limitations</h2>
-        </div>
-        <ul style="padding-left:1.5rem;">
-          <li class="mb-3">
-            <strong>Weather data quality.</strong>
-            nflverse weather fields are sourced from game-level stadium reports,
-            not play-level sensor data. In-game changes (e.g., wind shifting at
-            halftime) are not captured.
-          </li>
-          <li class="mb-3">
-            <strong>Receiver quality.</strong>
-            The model does not adjust for receiver separation or drop rate,
-            which correlate with team-level environment (roster construction)
-            rather than QB environment per se.
-          </li>
-          <li class="mb-3">
-            <strong>Interaction effects.</strong>
-            Additive separability is assumed. A QB who significantly
-            outperforms his peers in bad weather would have his skill
-            attributed to environment, not the reverse. Interaction terms
-            require substantially more data to estimate reliably.
-          </li>
-          <li class="mb-3">
-            <strong>Playoff exclusion.</strong>
-            Postseason games are excluded from coefficient estimation to
-            avoid survivorship bias (only certain teams play in cold-weather
-            postseason games).
-          </li>
-        </ul>
-      </section>
-
-      <!-- ── 8. Changelog ── -->
-      <section class="section">
-        <div class="section__header">
-          <h2 class="section__title">8 · Changelog</h2>
-        </div>
-        <div id="changelog">
-          <!-- populated by inline script -->
-        </div>
-      </section>
-
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">Empirical claims</h2>
+    <div class="method-table-wrap">
+      <table class="tmg-table">
+        <thead>
+          <tr>
+            <th scope="col">Claim</th>
+            <th scope="col">Status</th>
+            <th scope="col">How it was checked</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>League dome effect is +2.7 points of completion percentage (indoor 63.1, outdoor 60.4), road games only, 1999&ndash;2024 regular season</td>
+            <td><span class="status verified">Verified</span></td>
+            <td>Re-derived from nflverse play-by-play, away games only. Corroborated independently: Sports Info Solutions reports a 2.6 point indoor advantage and at most about two points of schedule-driven swing; GiveMeSport reports 2.3 over ten seasons. Window and method differ, the delta agrees.</td>
+          </tr>
+          <tr>
+            <td>79 quarterbacks qualify at 8+ road games in each environment</td>
+            <td><span class="status verified">Verified</span></td>
+            <td>Deterministic count from the filter, given the thresholds. The home-and-away version held 106; restricting the effect to road games costs 27.</td>
+          </tr>
+          <tr>
+            <td>Between-quarterback spread is about 1.7 points, heterogeneity significant (Q = 113, df = 78)</td>
+            <td><span class="status soft">Soft</span></td>
+            <td>Computed with DerSimonian-Laird on road-only splits. Depends on a normal random-effects model. Public writeups agree the pattern exists: some quarterbacks split hard, others barely move.</td>
+          </tr>
+          <tr>
+            <td>Per-quarterback projections, for example Brady at +3.4 to a full dome schedule</td>
+            <td><span class="status soft">Soft</span></td>
+            <td>Point estimates from the shrinkage. Bands are wide and often as large as the swing. The tool shows the band.</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </main>
+    <p class="src" style="margin-top:10px">Sources: <a href="https://www.sportsinfosolutions.com/2020/05/06/dome-field-advantage-how-much-does-weather-affect-quarterback-play/" target="_blank" rel="noreferrer">Sports Info Solutions</a>, <a href="https://www.givemesport.com/how-stadium-types-affect-nfl-scoring/" target="_blank" rel="noreferrer">GiveMeSport</a>.</p>
+  </div>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>TMG Analytics · QB Environment Reprojection · <a href="index.html">Tool</a></p>
-      <p>Data: <a href="https://nflverse.nflverse.com" target="_blank" rel="noopener">nflverse</a></p>
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">Decisions and their soft spots</h2>
+
+    <div class="decision">
+      <h3>Counterfactual method: shrinkage blend</h3>
+      <p class="tmg-body-sm">Each quarterback's own dome-minus-outdoor split is blended toward the league average, weighted by sample size. It beat a pure league transform, which is too flat, and a player-anchored split, which is too noisy on thin samples.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>It assumes every quarterback is drawn from one league-wide distribution of effects. They are not. Offenses and styles differ, and the shrinkage softens that assumption without removing it.</p></div>
     </div>
-  </footer>
 
-  <script>
-    // Model data injected by build_site.py
-    const MODEL = {{MODEL_JSON}};
+    <div class="decision">
+      <h3>The environment effect is measured on road games only</h3>
+      <p class="tmg-body-sm">A quarterback's home games are all one environment, so pooling home and away lets home-field advantage ride along inside the environment number. The effect is therefore measured on away games only, where both environments are played away and home field cancels. The anchor, his real career completion percentage and real environment mix, still uses all of his games, so the displayed number is his true career rate.</p>
+      <div class="spot done"><span class="lab">Resolved</span><p>This was the sharp soft spot in the first version, which pooled home and away. Fixing it matched the Sports Info Solutions method and moved real numbers. Drew Brees drops from a +3.8 raw split to a +2.4 clean effect, so most of his dome edge was home field. The cost is a shorter roster, 79 quarterbacks instead of 106, and wider bands, which suit the tool's honest thesis.</p></div>
+    </div>
 
-    // ── Populate coefficient table ────────────────────────────────────────────
-    (function renderCoeffs() {
-      const effects = MODEL.effects || {};
-      const meta    = MODEL.effects_meta || {};
-      const tbody   = document.getElementById('coeffs-tbody');
+    <div class="decision">
+      <h3>The axis is labeled environment, but the driver is weather</h3>
+      <p class="tmg-body-sm">Dome versus outdoor is used as the control because it is the documented, public split.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>Roof bundles temperature, wind, and rain together with the dome. Public analysis shows cold below forty degrees and rain are what move completion percentage, not the roof itself. The effect is not caused by the roof alone, and it is not causal.</p></div>
+    </div>
 
-      const labels = {
-        dome:  'Dome (fully indoor)',
-        clear: 'Clear / Mild (baseline)',
-        wind:  'High Wind (≥15 mph)',
-        rain:  'Rain',
-        cold:  'Cold (<35 °F)',
-        snow:  'Snow',
-      };
+    <div class="decision">
+      <h3>Games-started filter: 8 qualifying road games per environment</h3>
+      <p class="tmg-body-sm">A qualifying game is 10 or more attempts. The minimum is two-sided and applied to road games, so no quarterback makes the roster on a lopsided or home-heavy sample.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>Attempts are a proxy for starts. A blowout finished by a backup could count. Low impact.</p></div>
+    </div>
 
-      Object.entries(labels).forEach(([key, label]) => {
-        const v   = effects[key] ?? null;
-        const m   = meta[key]  ?? {};
-        const tr  = document.createElement('tr');
-        const ci  = m.ci_lo != null && m.ci_hi != null
-                    ? `[${fmtDelta(m.ci_lo)}, ${fmtDelta(m.ci_hi)}]`
-                    : '—';
-        const npl = m.n_plays != null ? m.n_plays.toLocaleString() : '—';
-        tr.innerHTML = `
-          <td>${label}</td>
-          <td class="td-right td-mono">${v != null ? fmtDelta(v) : '—'}</td>
-          <td class="td-right td-mono text-muted">${ci}</td>
-          <td class="td-right td-mono">${npl}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    })();
+    <div class="decision">
+      <h3>Metric and window: completion percentage only, 1999&ndash;2024</h3>
+      <p class="tmg-body-sm">One metric, regular season, twenty-six seasons.</p>
+      <div class="spot"><span class="lab">Soft spot</span><p>It ignores yards, sacks, interceptions, and the deep ball, where the dome edge is largest. Era pooling assumes the delta is stable across all those seasons. The delta is more stable than the raw level, but not guaranteed constant.</p></div>
+    </div>
+  </div>
 
-    // ── Populate validation card ──────────────────────────────────────────────
-    (function renderValidation() {
-      const val = MODEL.validation || {};
-      const rawEl     = document.getElementById('val-yoy-raw');
-      const neutralEl = document.getElementById('val-yoy-neutral');
-      if (val.yoy_raw     != null) rawEl.textContent     = val.yoy_raw.toFixed(3);
-      if (val.yoy_neutral != null) neutralEl.textContent = val.yoy_neutral.toFixed(3);
-    })();
+  <div class="tmg-card-wide caught">
+    <h2 class="tmg-card-title">The error that was caught</h2>
+    <p class="tmg-body">The first shrinkage estimator returned a between-quarterback variance of zero. Every quarterback collapsed to the league mean, so every counterfactual came out identical and the pick-a-player mechanic was fake. The cause was a weighted method-of-moments step that let large samples drive the estimated spread to zero. Switching to DerSimonian-Laird, the standard meta-analysis estimator, recovered a real spread of 1.6 points in the original home-and-away model and significant heterogeneity; the current road-only model puts the spread at 1.7. The lesson is the useful part: a flat result that makes the product pointless is a signal to check the estimator, not a reason to ship the flatness.</p>
+  </div>
 
-    // ── Populate changelog ────────────────────────────────────────────────────
-    (function renderChangelog() {
-      const changelog = MODEL.changelog || [];
-      const el = document.getElementById('changelog');
-      if (!changelog.length) {
-        el.innerHTML = '<p class="text-muted text-sm">No changelog entries yet.</p>';
-        return;
-      }
-      changelog.forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'callout callout--info mb-4';
-        div.innerHTML = `
-          <p class="text-sm text-muted mb-1">${entry.date}</p>
-          <p class="text-sm">${entry.description}</p>
-        `;
-        el.appendChild(div);
-      });
-    })();
+  <div class="tmg-card-wide">
+    <h2 class="tmg-card-title">What was not audited</h2>
+    <ul class="tight">
+      <li>No causal identification. This is a descriptive split presented as a counterfactual, and it is framed that way.</li>
+      <li>Weather severity, altitude, turf, and crowd noise are not separated from the roof.</li>
+      <li>The nflverse roof and stadium flags are trusted as given, not re-checked game by game.</li>
+      <li>Playoffs are excluded. Regular season only. Quarterbacks only. Completion percentage only.</li>
+    </ul>
+  </div>
 
-    function fmtDelta(v) {
-      if (v == null) return '—';
-      const sign = v >= 0 ? '+' : '';
-      return sign + (v * 100).toFixed(2) + ' pp';
+  <div class="tmg-card-wide verdict">
+    <h2 class="tmg-card-title">Verdict</h2>
+    <p class="tmg-body">Ready to ship as a stylized projection tool, with the framing kept on its face. The home-field confound is now removed by measuring the effect on road games only. One caveat remains and is worth stating plainly: the driver is weather, not the roof, so dome versus outdoor bundles temperature, wind, and rain together with the enclosure. That is fine for a portfolio tool. It would need separating if this were ever raised to a research claim.</p>
+  </div>
+
+  <footer class="tmg-footer">Data: nflverse play-by-play, 1999&ndash;2024 regular season. The Mallory Group.</footer>
+</div>
+
+<script>
+(function () {
+  const btn  = document.getElementById('tmgDdBtn');
+  const menu = document.getElementById('tmgDdMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const isOpen = menu.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', String(isOpen));
+  });
+  document.addEventListener('click', function () {
+    menu.classList.remove('open'); btn.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      menu.classList.remove('open'); btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false'); btn.focus();
     }
-  </script>
+  });
+})();
+</script>
 </body>
 </html>
