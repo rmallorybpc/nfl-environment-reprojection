@@ -20,7 +20,7 @@ __TMG_CSS__
   .env       { color: var(--tmg-warning); }   /* dome */
   .env.out   { color: var(--tmg-sage-hover); } /* outdoor */
 
-  .assume { font-size: 13px; color: rgba(45,52,54,0.55); margin: 12px 0 0; }
+  .assume { font-size: 13px; color: rgba(45,52,54,0.55); max-width: 64ch; margin: 12px 0 0; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; margin-bottom: 18px; }
   .field    { min-width: 230px; }
@@ -69,10 +69,6 @@ __TMG_CSS__
     <div class="tmg-logo-divider" aria-hidden="true"></div>
     <span>G</span>
   </div>
-  <div class="tmg-page-nav" aria-label="Page navigation">
-    <a href="index.html" aria-current="page">Projection tool</a>
-    <a href="audit.html">Audit</a>
-  </div>
   <div class="tmg-dropdown-wrap">
     <button class="tmg-dropdown-btn" id="tmgDdBtn"
             aria-haspopup="true" aria-expanded="false" aria-controls="tmgDdMenu">
@@ -103,8 +99,8 @@ __TMG_CSS__
   <div class="tmg-page-header">
     <p class="tmg-eyebrow">NFL environment reprojection</p>
     <h1 class="tmg-page-title" id="headline">If <span id="hl-name">Tom Brady</span> had played every game <span id="hl-env" class="env">in a dome</span></h1>
-    <p class="tmg-page-desc">Move the slider. The band is wider than the swing. A dome helps completion percentage by roughly two to three points across the league. For any one quarterback, the honest counterfactual is a small shift inside a wide margin.</p>
-    <p class="assume">This holds the quarterback's style constant. It blends his own dome and outdoor split, measured on road games so home-field advantage is held out, toward the league average, weighted by how many games he has in each. A stylized projection, not a prediction.</p>
+    <p class="tmg-page-desc">Move the slider to change how much of his career is played indoors. A dome helps completion percentage by roughly two to three points across the league. For any one quarterback, small changes to his schedule produce small shifts. The shaded area shows the uncertainty, and it widens the further the slider moves from the environment mix he actually played.</p>
+    <p class="assume">This holds the quarterback's style constant. It blends his own dome and outdoor split, measured on road games so home-field advantage is held out, toward the league average, weighted by how many games he has in each. A simplified what-if, not a prediction.</p>
   </div>
 
   <div class="tmg-card-wide" role="region" aria-label="Counterfactual completion chart">
