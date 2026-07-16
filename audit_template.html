@@ -52,10 +52,6 @@ __TMG_CSS__
     <div class="tmg-logo-divider" aria-hidden="true"></div>
     <span>G</span>
   </div>
-  <div class="tmg-page-nav" aria-label="Page navigation">
-    <a href="index.html">Projection tool</a>
-    <a href="audit.html" aria-current="page">Audit</a>
-  </div>
   <div class="tmg-dropdown-wrap">
     <button class="tmg-dropdown-btn" id="tmgDdBtn"
             aria-haspopup="true" aria-expanded="false" aria-controls="tmgDdMenu">
@@ -169,7 +165,7 @@ __TMG_CSS__
 
   <div class="tmg-card-wide caught">
     <h2 class="tmg-card-title">The error that was caught</h2>
-    <p class="tmg-body">The first shrinkage estimator returned a between-quarterback variance of zero. Every quarterback collapsed to the league mean, so every counterfactual came out identical and the pick-a-player mechanic was fake. The cause was a weighted method-of-moments step that let large samples drive the estimated spread to zero. Switching to DerSimonian-Laird, the standard meta-analysis estimator, recovered a real spread of 1.6 points in the original home-and-away model and significant heterogeneity; the current road-only model puts the spread at 1.7. The lesson is the useful part: a flat result that makes the product pointless is a signal to check the estimator, not a reason to ship the flatness.</p>
+    <p class="tmg-body">The first shrinkage estimator returned a between-quarterback variance of zero. Every quarterback collapsed to the league mean, so every counterfactual came out identical and the pick-a-player mechanic was fake. The cause was a weighted method-of-moments step that let large samples drive the estimated spread to zero. Switching to DerSimonian-Laird, the standard estimator of between-group variance in random-effects meta-analysis, recovered a real spread of 1.6 points in the original home-and-away model and significant heterogeneity; the current road-only model puts the spread at 1.7. The shrinkage itself is empirical Bayes, and DerSimonian-Laird supplies the variance component that sets its weights. The lesson is the useful part: a flat result that makes the product pointless is a signal to check the estimator, not a reason to ship the flatness.</p>
   </div>
 
   <div class="tmg-card-wide">
