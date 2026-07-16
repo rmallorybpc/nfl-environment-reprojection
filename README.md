@@ -17,7 +17,9 @@ mix and flares toward the hypothetical extremes.
 
 Each quarterback's own dome-minus-outdoor split is measured on road games only,
 so home-field advantage does not contaminate it, then blended toward the league
-average and weighted by sample size (empirical Bayes, DerSimonian-Laird). A
+average and weighted by sample size. The blend is empirical Bayes shrinkage;
+the between-quarterback variance that sets the weights is estimated with the
+DerSimonian-Laird method, treating each quarterback's split as a small study. A
 quarterback with many road games in both settings keeps most of his own effect;
 a thin road sample is pulled toward the league. The anchor is his real career
 completion percentage across all games, so the projection passes through his true
@@ -63,8 +65,9 @@ data. Credit where it is due:
 - **Method precedent:** measuring the environment effect on road games only, to
   hold home-field advantage out of the split, follows the Sports Info Solutions
   approach.
-- **Statistics:** the shrinkage uses the DerSimonian-Laird random-effects
-  estimator (DerSimonian and Laird, 1986, *Controlled Clinical Trials*).
+- **Statistics:** empirical Bayes shrinkage, with the between-quarterback
+  variance estimated by the DerSimonian-Laird random-effects method
+  (DerSimonian and Laird, 1986, *Controlled Clinical Trials*).
 - **Design system:** The Mallory Group brand guide; Inter typeface via Google
   Fonts.
 
