@@ -106,14 +106,11 @@ body {
 .tmg-nav {
   position: sticky; top: 0; z-index: 100;
   background: var(--tmg-white); border-bottom: var(--tmg-border);
-  padding: 0 24px; min-height: 56px;
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: center; column-gap: 24px;
-  overflow-x: auto;
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
 }
 
 .tmg-logo {
-  justify-self: start;
   display: flex; align-items: center;
   font-size: 17px; font-weight: 500; letter-spacing: 0.02em;
   color: var(--tmg-charcoal); text-decoration: none;
@@ -124,48 +121,13 @@ body {
   background: var(--tmg-sage); border-radius: 2px; margin: 0 1px;
 }
 
-.tmg-page-nav {
-  justify-self: center;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tmg-page-nav a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 7px 12px;
-  border-radius: var(--tmg-btn-radius);
-  border: 1px solid transparent;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--tmg-charcoal);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.tmg-page-nav a:hover {
-  background: rgba(132,169,140,0.10);
-  border-color: rgba(132,169,140,0.40);
-  color: var(--tmg-sage-hover);
-}
-
-.tmg-page-nav a[aria-current="page"] {
-  background: var(--tmg-charcoal);
-  border-color: var(--tmg-charcoal);
-  color: var(--tmg-white);
-}
-
-.tmg-dropdown-wrap { position: relative; justify-self: end; }
+.tmg-dropdown-wrap { position: relative; }
 
 .tmg-dropdown-btn {
   background: transparent; border: 1px solid rgba(45,52,54,0.20);
   border-radius: var(--tmg-btn-radius); padding: 7px 14px;
   font-size: 13px; font-weight: 500; color: var(--tmg-charcoal);
   cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-  white-space: nowrap;
   font-family: inherit; transition: background 0.15s;
 }
 .tmg-dropdown-btn:hover,
@@ -190,22 +152,6 @@ body {
 }
 .tmg-dropdown-menu a:hover          { background: rgba(132,169,140,0.12); color: var(--tmg-sage-hover); }
 .tmg-dropdown-menu a:focus-visible  { outline: 2px solid var(--tmg-sage); outline-offset: -2px; border-radius: 6px; }
-
-@media (max-width: 900px) {
-  .tmg-nav {
-    grid-template-columns: auto 1fr auto;
-    column-gap: 12px;
-    padding: 0 16px;
-  }
-
-  .tmg-page-nav { gap: 8px; }
-
-  .tmg-page-nav a,
-  .tmg-dropdown-btn {
-    font-size: 12px;
-    padding: 6px 10px;
-  }
-}
 
 
 /* ── 5. Layout ─────────────────────────────────────────────── */
@@ -334,7 +280,7 @@ body {
   .env       { color: var(--tmg-warning); }   /* dome */
   .env.out   { color: var(--tmg-sage-hover); } /* outdoor */
 
-  .assume { font-size: 13px; color: rgba(45,52,54,0.55); margin: 12px 0 0; }
+  .assume { font-size: 13px; color: rgba(45,52,54,0.55); max-width: 64ch; margin: 12px 0 0; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; margin-bottom: 18px; }
   .field    { min-width: 230px; }
@@ -382,10 +328,6 @@ body {
     <span>TM</span>
     <div class="tmg-logo-divider" aria-hidden="true"></div>
     <span>G</span>
-  </div>
-  <div class="tmg-page-nav" aria-label="Page navigation">
-    <a href="index.html" aria-current="page">Projection tool</a>
-    <a href="audit.html">Audit</a>
   </div>
   <div class="tmg-dropdown-wrap">
     <button class="tmg-dropdown-btn" id="tmgDdBtn"
@@ -461,9 +403,9 @@ body {
 
   <div class="tmg-card-wide method-note">
     <h2 class="tmg-card-title">How this is built</h2>
-    <p class="tmg-body-sm">The counterfactual shifts the quarterback's real completion percentage by his environment effect. That effect is not his raw dome-minus-outdoor split. It is his own split, measured on road games only so home-field advantage does not contaminate it, blended toward the league average and weighted by sample size (empirical Bayes, DerSimonian-Laird). A quarterback with many road games in both settings keeps most of his own effect. A thin road sample is pulled toward the league. The anchor, his real career completion percentage and his real environment mix, uses all of his games, so the number you see is his true career rate.</p>
+    <p class="tmg-body-sm">The counterfactual shifts the quarterback's real completion percentage by his environment effect. That effect is not his raw dome-minus-outdoor split. It is his own split, measured on road games only so home-field advantage does not contaminate it, blended toward the league average and weighted by sample size. The blend is empirical Bayes shrinkage; the spread of true effects across quarterbacks, which sets the weights, is estimated with the DerSimonian-Laird method from random-effects meta-analysis, treating each quarterback's split as a small study. A quarterback with many road games in both settings keeps most of his own effect. A thin road sample is pulled toward the league. The anchor, his real career completion percentage and his real environment mix, uses all of his games, so the number you see is his true career rate.</p>
     <p class="tmg-body-sm">The band widens as you drag away from his real environment mix, because the projection gets less certain the further it sits from what he actually did. At his real mix the line equals his real career number. That is the point the whole tool is anchored to.</p>
-    <div class="facts" id="facts"></div>
+    <div class="facts" id="facts"><span class="fact">League dome effect &nbsp;+2.7 pts</span><span class="fact">Indoor / outdoor &nbsp;<b>63.1</b> / <b>60.4</b></span><span class="fact">Between-QB spread &nbsp;<b>1.7</b> pts (Q=113.4, df=78)</span><span class="fact">Roster &nbsp;<b>79</b> QBs</span><span class="fact">Effect basis &nbsp;road games only</span><span class="fact">Min road games / env &nbsp;<b>8</b> (10+ att)</span><span class="fact">Window &nbsp;<b>1999&ndash;2024</b> reg. season</span><span class="fact">Source &nbsp;nflverse play-by-play</span></div>
     <p class="tmg-body-sm" style="margin-top:14px"><a href="audit.html">Read the audit of these decisions and their weaknesses &#8594;</a></p>
   </div>
 
@@ -2024,16 +1966,8 @@ document.querySelectorAll(".chip").forEach(ch=>{
   });
 });
 
-document.getElementById("facts").innerHTML = [
-  ["League dome effect","+"+(L.d_league*100).toFixed(1)+" pts"],
-  ["Indoor / outdoor","<b>"+fmtPct(L.c_in)+"</b> / <b>"+fmtPct(L.c_out)+"</b>"],
-  ["Between-QB spread","<b>"+(L.sd_between*100).toFixed(1)+"</b> pts (Q="+L.Q+", df="+L.Q_df+")"],
-  ["Roster","<b>"+MODEL.meta.n_players+"</b> QBs"],
-  ["Effect basis","road games only"],
-  ["Min road games / env","<b>"+MODEL.meta.min_games_per_env+"</b> (10+ att)"],
-  ["Window","<b>"+MODEL.meta.season_start+"&ndash;"+MODEL.meta.season_end+"</b> reg. season"],
-  ["Source","nflverse play-by-play"],
-].map(([k,v])=>'<span class="fact">'+k+" &nbsp;"+v+"</span>").join("");
+// Fact chips are baked into the HTML at build time (build_site.py), so the
+// key numbers are visible to crawlers and readers without JavaScript.
 
 loadPlayer(players[0]);
 </script>
