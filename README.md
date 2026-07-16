@@ -4,7 +4,7 @@ An interactive tool that re-projects an NFL quarterback's career completion
 percentage as if his environment mix had been different, dome versus outdoor,
 built on the documented league environment effect and shown with error bars.
 
-The point of the tool is honesty about size. A dome lifts completion percentage
+The point of the tool is how small the effect is. A dome lifts completion percentage
 by roughly two to three points across the league, the swings for any one
 quarterback are small, and the uncertainty band is usually as wide as the swing.
 The band is drawn as the hero: it narrows at the quarterback's real environment
@@ -21,7 +21,7 @@ average and weighted by sample size (empirical Bayes, DerSimonian-Laird). A
 quarterback with many road games in both settings keeps most of his own effect;
 a thin road sample is pulled toward the league. The anchor is his real career
 completion percentage across all games, so the projection passes through his true
-career number at his real environment mix. See `audit.html` for the honest limits,
+career number at his real environment mix. See `audit.html` for the limits,
 including the weather-not-roof caveat.
 
 ## Build
@@ -71,7 +71,7 @@ data. Credit where it is due:
 NFL data belongs to its respective owners and is governed by their terms of
 use. This project is unaffiliated with the NFL and with nflverse.
 
-## Honest limits
+## Limits
 
 The tool states these on its face and the audit page treats them in full: the
 projection is stylized, not causal; the roof is a proxy for weather, which is
