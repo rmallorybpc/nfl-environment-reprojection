@@ -1,5 +1,7 @@
 # NFL environment reprojection
 
+**Live site:** https://rmallorybpc.github.io/nfl-environment-reprojection/
+
 An interactive tool that re-projects an NFL quarterback's career completion
 percentage as if his environment mix had been different, dome versus outdoor,
 built on the documented league environment effect and shown with error bars.
